@@ -50,11 +50,4 @@ export default class File {
 		this[_bytes] = Buffer.from(text)
 	}
 
-	clone() {
-		let file = new File(this.path)
-		file.stat = this.stat
-		file.bytes = this.bytes
-		return file
-	}
-
 }

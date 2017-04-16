@@ -51,12 +51,6 @@ class File {
 		this[_text] = text;
 		this[_bytes] = Buffer.from(text);
 	}
-	clone() {
-		let file = new File(this.path);
-		file.stat = this.stat;
-		file.bytes = this.bytes;
-		return file
-	}
 }
 let _files = Symbol();
 let _defiles = Symbol();
@@ -205,14 +199,13 @@ class Defiler extends events {
 		}
 		return this[_defiles].get(path)
 	}
-	refile(path) {
+	async refile(path) {
 		this[_checkAfterExec]('refile');
 		if (this[_customGenerators].has(path)) {
-			this[_handleGeneratedFile](path);
+			await this[_handleGeneratedFile](path);
 		} else if (this[_files].has(path)) {
-			this[_processFile](this[_files].get(path));
+			await this[_processFile](this[_files].get(path));
 		}
-		return this
 	}
 	async addFile(defile) {
 		this[_checkAfterExec]('addFile');
@@ -226,7 +219,6 @@ class Defiler extends events {
 		for (let { gaze } of this[_gazes]) {
 			gaze.close();
 		}
-		return this
 	}
 	// private methods
 	[_checkBeforeExec](methodName) {
@@ -255,7 +247,9 @@ class Defiler extends events {
 		await this[_processFile](file);
 	}
 	async [_processFile](file) {
-		let defile = file.clone();
+		let defile = new File(file.path);
+		defile.stat = file.stat;
+		defile.bytes = file.bytes;
 		await this[_transformFile](defile);
 		this[_defiles].set(file.path, defile);
 		this.emit('defile', defile);
@@ -294,7 +288,7 @@ class Defiler extends events {
 	async [_handleGeneratedFile](path) {
 		try {
 			let file = new File(path);
-			await this[_customGenerators].get(path)(file);
+			await this[_customGenerators].get(path)(file, this);
 			await this.addFile(file);
 		} catch (err) {
 			this.emit('error', path, err);
