@@ -30,6 +30,9 @@ export default class File {
 	}
 
 	get bytes() {
+		if (this[_bytes] == null && this[_text] != null) {
+			this[_bytes] = Buffer.from(this[_text])
+		}
 		return this[_bytes]
 	}
 
@@ -39,7 +42,7 @@ export default class File {
 	}
 
 	get text() {
-		if (this[_text] == null) {
+		if (this[_text] == null && this[_bytes] != null) {
 			this[_text] = this[_bytes].toString()
 		}
 		return this[_text]
@@ -47,7 +50,7 @@ export default class File {
 
 	set text(text) {
 		this[_text] = text
-		this[_bytes] = Buffer.from(text)
+		this[_bytes] = null
 	}
 
 }

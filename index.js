@@ -35,6 +35,9 @@ class File {
 		}
 	}
 	get bytes() {
+		if (this[_bytes] == null && this[_text] != null) {
+			this[_bytes] = Buffer.from(this[_text]);
+		}
 		return this[_bytes]
 	}
 	set bytes(bytes) {
@@ -42,14 +45,14 @@ class File {
 		this[_text] = null;
 	}
 	get text() {
-		if (this[_text] == null) {
+		if (this[_text] == null && this[_bytes] != null) {
 			this[_text] = this[_bytes].toString();
 		}
 		return this[_text]
 	}
 	set text(text) {
 		this[_text] = text;
-		this[_bytes] = Buffer.from(text);
+		this[_bytes] = null;
 	}
 }
 let _files = Symbol();
