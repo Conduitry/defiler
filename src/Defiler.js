@@ -255,10 +255,10 @@ export default class Defiler extends EventEmitter {
 			for (let { type, transform, condition } of this[_transforms]) {
 				if (type === TRANSFORM) {
 					if (skipDepth === null) {
-						await transform(defile, this)
+						await transform.call(this, defile)
 					}
 				} else if (type === IF) {
-					if (skipDepth === null && !condition(defile, this)) {
+					if (skipDepth === null && !condition.call(this, defile)) {
 						skipDepth = depth
 					}
 					depth++
@@ -283,7 +283,7 @@ export default class Defiler extends EventEmitter {
 	async [_handleGeneratedFile](path) {
 		try {
 			let file = new File(path)
-			await this[_customGenerators].get(path)(file, this)
+			await this[_customGenerators].get(path).call(this, file)
 			await this.addFile(file)
 		} catch (err) {
 			this.emit('error', path, err)
