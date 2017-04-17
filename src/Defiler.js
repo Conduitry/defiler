@@ -72,15 +72,15 @@ export default class Defiler extends EventEmitter {
 		return this
 	}
 
-	addTransform(func) {
+	addTransform(transform) {
 		this[_checkBeforeExec]('addTransform')
-		this[_transforms].push({ type: TRANSFORM, func })
+		this[_transforms].push({ type: TRANSFORM, transform })
 		return this
 	}
 
-	if(func) {
+	if(condition) {
 		this[_checkBeforeExec]('if')
-		this[_transforms].push({ type: IF, func })
+		this[_transforms].push({ type: IF, condition })
 		return this
 	}
 
@@ -252,23 +252,23 @@ export default class Defiler extends EventEmitter {
 		let depth = 0
 		let skipDepth = null
 		try {
-			for (let transform of this[_transforms]) {
-				if (transform.type === TRANSFORM) {
+			for (let { type, transform, condition } of this[_transforms]) {
+				if (type === TRANSFORM) {
 					if (skipDepth === null) {
-						await transform.func(defile, this)
+						await transform(defile, this)
 					}
-				} else if (transform.type === IF) {
-					if (skipDepth === null && !transform.func(defile)) {
+				} else if (type === IF) {
+					if (skipDepth === null && !condition(defile, this)) {
 						skipDepth = depth
 					}
 					depth++
-				} else if (transform.type === ELSE) {
+				} else if (type === ELSE) {
 					if (skipDepth === null) {
 						skipDepth = depth - 1
 					} else if (skipDepth === depth - 1) {
 						skipDepth = null
 					}
-				} else if (transform.type === END) {
+				} else if (type === END) {
 					depth--
 					if (skipDepth === depth) {
 						skipDepth = null
