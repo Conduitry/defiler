@@ -55,8 +55,8 @@ class File {
 		this[_bytes] = null;
 	}
 }
+let _origFiles = Symbol();
 let _files = Symbol();
-let _defiles = Symbol();
 let _ready = Symbol();
 let _gazes = Symbol();
 let _gazePromises = Symbol();
@@ -77,8 +77,8 @@ let END = Symbol();
 class Defiler extends events {
 	constructor() {
 		super();
+		this[_origFiles] = new Map();
 		this[_files] = new Map();
-		this[_defiles] = new Map();
 		this[_ready] = null;
 		this[_gazes] = [];
 		this[_gazePromises] = [];
@@ -91,14 +91,14 @@ class Defiler extends events {
 	get ready() {
 		return this[_ready]
 	}
+	get origFiles() {
+		return this[_origFiles]
+	}
 	get files() {
 		return this[_files]
 	}
-	get defiles() {
-		return this[_defiles]
-	}
-	get paths() {
-		return [ ...(this[_filePromises] || this[_files]).keys() ].sort()
+	get origPaths() {
+		return [ ...(this[_filePromises] || this[_origFiles]).keys() ].sort()
 	}
 	// pre-exec (configuration) methods
 	addGaze(gaze, rootPath, read = true) {
@@ -159,15 +159,15 @@ class Defiler extends events {
 				gaze.on('all', (event, absolutePath) => {
 					if (event === 'deleted') {
 						let path = _relativePath(rootPath, absolutePath);
+						this[_origFiles].delete(path);
 						this[_files].delete(path);
-						this[_defiles].delete(path);
 						this.emit('deleted', path);
 					} else {
 						this[_processPhysicalFile](absolutePath, rootPath, read);
 					}
 				});
 			}
-			this.on('defile', file => {
+			this.on('file', file => {
 				let origins = new Set();
 				for (let [ origin, deps ] of this[_dependencies].entries()) {
 					if (deps.has(file.path)) {
@@ -200,22 +200,22 @@ class Defiler extends events {
 		if (this[_filePromises]) {
 			await this[_filePromises].get(path);
 		}
-		return this[_defiles].get(path)
+		return this[_files].get(path)
 	}
 	async refile(path) {
 		this[_checkAfterExec]('refile');
 		if (this[_customGenerators].has(path)) {
 			await this[_handleGeneratedFile](path);
-		} else if (this[_files].has(path)) {
-			await this[_processFile](this[_files].get(path));
+		} else if (this[_origFiles].has(path)) {
+			await this[_processFile](this[_origFiles].get(path));
 		}
 	}
-	async addFile(defile) {
+	async addFile(file) {
 		this[_checkAfterExec]('addFile');
-		let { path } = defile;
-		await this[_transformFile](defile);
-		this[_defiles].set(path, defile);
-		this.emit('defile', defile);
+		let { path } = file;
+		await this[_transformFile](file);
+		this[_files].set(path, file);
+		this.emit('file', file);
 	}
 	close() {
 		this[_checkAfterExec]('close');
@@ -240,34 +240,34 @@ class Defiler extends events {
 			return
 		}
 		let path = _relativePath(rootPath, absolutePath);
-		let file = new File(path);
-		file.stat = fileStat;
+		let origFile = new File(path);
+		origFile.stat = fileStat;
 		if (read) {
-			file.bytes = await readFile$$1(absolutePath);
+			origFile.bytes = await readFile$$1(absolutePath);
 		}
-		this[_files].set(path, file);
+		this[_origFiles].set(path, origFile);
+		this.emit('origFile', origFile);
+		await this[_processFile](origFile);
+	}
+	async [_processFile](origFile) {
+		let file = new File(origFile.path);
+		file.stat = origFile.stat;
+		file.bytes = origFile.bytes;
+		await this[_transformFile](file);
+		this[_files].set(origFile.path, file);
 		this.emit('file', file);
-		await this[_processFile](file);
 	}
-	async [_processFile](file) {
-		let defile = new File(file.path);
-		defile.stat = file.stat;
-		defile.bytes = file.bytes;
-		await this[_transformFile](defile);
-		this[_defiles].set(file.path, defile);
-		this.emit('defile', defile);
-	}
-	async [_transformFile](defile) {
+	async [_transformFile](file) {
 		let depth = 0;
 		let skipDepth = null;
 		try {
 			for (let { type, transform, condition } of this[_transforms]) {
 				if (type === TRANSFORM) {
 					if (skipDepth === null) {
-						await transform.call(this, defile);
+						await transform.call(this, file);
 					}
 				} else if (type === IF) {
-					if (skipDepth === null && !condition.call(this, defile)) {
+					if (skipDepth === null && !condition.call(this, file)) {
 						skipDepth = depth;
 					}
 					depth++;
@@ -285,7 +285,7 @@ class Defiler extends events {
 				}
 			}
 		} catch (err) {
-			this.emit('error', defile, err);
+			this.emit('error', file, err);
 		}
 	}
 	async [_handleGeneratedFile](path) {
