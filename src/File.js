@@ -1,13 +1,10 @@
-let _bytes = Symbol()
-let _text = Symbol()
-
 export default class File {
 
 	constructor(path) {
 		this.path = path
 		this.stat = null
-		this[_bytes] = null
-		this[_text] = null
+		this._bytes = null
+		this._text = null
 	}
 
 	get ext() {
@@ -30,27 +27,27 @@ export default class File {
 	}
 
 	get bytes() {
-		if (this[_bytes] == null && this[_text] != null) {
-			this[_bytes] = Buffer.from(this[_text])
+		if (this._bytes == null && this._text != null) {
+			this._bytes = Buffer.from(this._text)
 		}
-		return this[_bytes]
+		return this._bytes
 	}
 
 	set bytes(bytes) {
-		this[_bytes] = bytes
-		this[_text] = null
+		this._bytes = bytes
+		this._text = null
 	}
 
 	get text() {
-		if (this[_text] == null && this[_bytes] != null) {
-			this[_text] = this[_bytes].toString()
+		if (this._text == null && this._bytes != null) {
+			this._text = this._bytes.toString()
 		}
-		return this[_text]
+		return this._text
 	}
 
 	set text(text) {
-		this[_text] = text
-		this[_bytes] = null
+		this._text = text
+		this._bytes = null
 	}
 
 }
