@@ -4,6 +4,9 @@
 	"description": "A small, strange building block",
 	"main": "./dist/index.cjs.js",
 	"module": "./src/index.es.js",
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "rollup -c",
 		"eslint": "eslint",
