@@ -1,5 +1,4 @@
 export default class File {
-
 	constructor(path) {
 		this.path = path
 		this.stat = null
@@ -49,5 +48,4 @@ export default class File {
 		this._text = text
 		this._bytes = null
 	}
-
 }

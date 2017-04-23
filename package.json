@@ -2,9 +2,19 @@
 	"name": "@conduitry/defiler",
 	"version": "0.0.1",
 	"description": "A small, strange building block",
-	"main": "index.js",
+	"main": "./dist/index.cjs.js",
+	"module": "./src/index.es.js",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"build": "rollup -c",
+		"eslint": "eslint",
+    "prettier": "prettier",
+    "lint": "eslint src",
+    "format": "prettier --write --print-width 160 --use-tabs --no-semi --single-quote --trailing-comma es5 \"src/**/*.js\""
+	},
+	"devDependencies": {
+		"eslint": "^3.19.0",
+		"prettier": "^1.2.2",
+		"rollup": "^0.41.6"
 	},
 	"repository": {
 		"type": "git",

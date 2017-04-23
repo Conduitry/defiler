@@ -1,6 +1,7 @@
 import EventEmitter from 'events'
-import { readFile, stat } from 'fs.promise'
+import { readFile, stat } from 'fs'
 import { relative } from 'path'
+
 import File from './File.js'
 
 let TRANSFORM = Symbol()
@@ -9,7 +10,6 @@ let ELSE = Symbol()
 let END = Symbol()
 
 export default class Defiler extends EventEmitter {
-
 	constructor() {
 		super()
 
@@ -41,7 +41,7 @@ export default class Defiler extends EventEmitter {
 	}
 
 	get origPaths() {
-		return [ ...(this._filePromises || this._origFiles).keys() ].sort()
+		return [...(this._filePromises || this._origFiles).keys()].sort()
 	}
 
 	// pre-exec (configuration) methods
@@ -49,7 +49,7 @@ export default class Defiler extends EventEmitter {
 	addGaze(gaze, rootPath, read = true) {
 		this._checkBeforeExec('addGaze')
 		this._gazes.push({ gaze, rootPath, read })
-		this._gazePromises.push(new Promise(resolve => gaze.on('ready', resolve)))
+		this._gazePromises.push(new Promise(res => gaze.on('ready', res)))
 		return this
 	}
 
@@ -87,8 +87,7 @@ export default class Defiler extends EventEmitter {
 
 	exec() {
 		this._checkBeforeExec('exec')
-		this._ready = new Promise(async resolve => {
-
+		this._ready = new Promise(async res => {
 			await Promise.all(this._gazePromises)
 			this._gazePromises = null
 
@@ -128,7 +127,7 @@ export default class Defiler extends EventEmitter {
 
 			this.on('file', file => {
 				let origins = new Set()
-				for (let [ origin, deps ] of this._dependencies.entries()) {
+				for (let [origin, deps] of this._dependencies.entries()) {
 					if (deps.has(file.path)) {
 						origins.add(origin)
 						this._dependencies.delete(origin)
@@ -140,7 +139,7 @@ export default class Defiler extends EventEmitter {
 			})
 
 			this._filePromises = null
-			resolve()
+			res()
 		})
 
 		return this
@@ -157,7 +156,7 @@ export default class Defiler extends EventEmitter {
 			if (this._dependencies.has(origin)) {
 				this._dependencies.get(origin).add(path)
 			} else {
-				this._dependencies.set(origin, new Set([ path ]))
+				this._dependencies.set(origin, new Set([path]))
 			}
 		}
 		if (this._filePromises) {
@@ -205,7 +204,7 @@ export default class Defiler extends EventEmitter {
 	}
 
 	async _processPhysicalFile(absolutePath, rootPath, read) {
-		let fileStat = await stat(absolutePath)
+		let fileStat = await new Promise((res, rej) => stat(absolutePath, (err, data) => (err ? rej(err) : res(data))))
 		if (!fileStat.isFile()) {
 			return
 		}
@@ -213,7 +212,7 @@ export default class Defiler extends EventEmitter {
 		let origFile = new File(path)
 		origFile.stat = fileStat
 		if (read) {
-			origFile.bytes = await readFile(absolutePath)
+			origFile.bytes = await new Promise((res, rej) => readFile(absolutePath, (err, data) => (err ? rej(err) : res(data))))
 		}
 		this._origFiles.set(path, origFile)
 		this.emit('origFile', origFile)
@@ -274,5 +273,4 @@ export default class Defiler extends EventEmitter {
 	static _relativePath(rootPath, absolutePath) {
 		return relative(rootPath, absolutePath).replace(/\\/g, '/')
 	}
-
 }
