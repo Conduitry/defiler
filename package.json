@@ -1,6 +1,6 @@
 {
 	"name": "defiler",
-	"version": "0.0.3",
+	"version": "0.1.0",
 	"description": "A small, strange building block",
 	"main": "./dist/index.cjs.js",
 	"module": "./src/index.es.js",
