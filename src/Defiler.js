@@ -261,12 +261,13 @@ export default class Defiler extends EventEmitter {
 	}
 
 	async _handleGeneratedFile(path) {
+		let file
 		try {
-			let file = new File(path)
+			file = new File(path)
 			await this._customGenerators.get(path).call(this, file)
 			await this.addFile(file)
 		} catch (err) {
-			this.emit('error', path, err)
+			this.emit('error', file, err)
 		}
 	}
 
