@@ -1,5 +1,7 @@
 # Defiler
 
+[![npm version](https://img.shields.io/npm/v/defiler.svg?style=flat-square)](https://www.npmjs.com/package/defiler)
+
 A small, strange building block.
 
 ## Motivation
