@@ -36,8 +36,12 @@ If you need some task management, that's outside the scope of this library. Just
 
 See [API.md](https://github.com/Conduitry/defiler/blob/master/API.md).
 
+## TODOs
+
+See [TODO.md](https://github.com/Conduitry/defiler/blob/master/TODO.md).
+
 ## License
 
 Copyright (c) 2017 Conduitry
 
-MIT License
+[MIT License](https://github.com/Conduitry/defiler/blob/master/LICENSE)
