@@ -41,7 +41,7 @@ export default class Defiler extends EventEmitter {
 	}
 
 	get origPaths() {
-		return [...(this._filePromises || this._origFiles).keys()].sort()
+		return [...this._origFiles.keys()].sort()
 	}
 
 	// pre-exec (configuration) methods
@@ -99,7 +99,9 @@ export default class Defiler extends EventEmitter {
 					for (let absolutePath of watched[dir]) {
 						let promise = this._processPhysicalFile(absolutePath, rootPath, read)
 						promises.push(promise)
-						this._filePromises.set(Defiler._relativePath(rootPath, absolutePath), promise)
+						let path = Defiler._relativePath(rootPath, absolutePath)
+						this._filePromises.set(path, promise)
+						this._origFiles.set(path, null)
 					}
 				}
 			}
@@ -220,9 +222,7 @@ export default class Defiler extends EventEmitter {
 	}
 
 	async _processFile(origFile) {
-		let file = new File(origFile.path)
-		file.stat = origFile.stat
-		file.bytes = origFile.bytes
+		let file = Object.assign(new File(), origFile)
 		await this._transformFile(file)
 		this._files.set(origFile.path, file)
 		this.emit('file', file)
