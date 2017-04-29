@@ -32,16 +32,14 @@ If you need some task management, that's outside the scope of this library. Just
 - [Gaze](https://www.npmjs.com/package/gaze)
 - Insanity
 
-## API
+## Documents
 
-See [API.md](https://github.com/Conduitry/defiler/blob/master/API.md).
-
-## TODOs
-
-See [TODO.md](https://github.com/Conduitry/defiler/blob/master/TODO.md).
+- [API](https://github.com/Conduitry/defiler/blob/master/API.md)
+- [CHANGELOG](https://github.com/Conduitry/defiler/blob/master/CHANGELOG.md)
+- [TODO](https://github.com/Conduitry/defiler/blob/master/TODO.md)
 
 ## License
 
 Copyright (c) 2017 Conduitry
 
-[MIT License](https://github.com/Conduitry/defiler/blob/master/LICENSE)
+- [MIT License](https://github.com/Conduitry/defiler/blob/master/LICENSE)
