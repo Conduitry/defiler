@@ -37,6 +37,7 @@ If you need some task management, that's outside the scope of this library. Just
 - [api](https://github.com/Conduitry/defiler/blob/master/API.md#readme)
 - [changelog](https://github.com/Conduitry/defiler/blob/master/CHANGELOG.md#readme)
 - [todo](https://github.com/Conduitry/defiler/blob/master/TODO.md#readme)
+- [homepage](https://code.furry.tips/defiler/)
 
 ## License
 
