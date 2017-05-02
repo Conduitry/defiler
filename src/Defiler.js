@@ -24,6 +24,9 @@ export default class Defiler extends EventEmitter {
 		this._filePromises = new Map()
 		this._customGenerators = new Map()
 		this._dependencies = new Map()
+
+		this._processing = false
+		this._queue = []
 	}
 
 	// read-only getters
@@ -87,6 +90,7 @@ export default class Defiler extends EventEmitter {
 
 	exec() {
 		this._checkBeforeExec('exec')
+		this._processing = true
 		this._ready = new Promise(async res => {
 			await Promise.all(this._gazePromises)
 			this._gazePromises = null
@@ -112,20 +116,14 @@ export default class Defiler extends EventEmitter {
 				this._filePromises.set(path, promise)
 			}
 
-			await Promise.all(promises)
-
 			for (let { gaze, rootPath, read } of this._gazes) {
 				gaze.on('all', (event, absolutePath) => {
-					if (event === 'deleted') {
-						let path = Defiler._relativePath(rootPath, absolutePath)
-						this._origFiles.delete(path)
-						this._files.delete(path)
-						this.emit('deleted', path)
-					} else {
-						this._processPhysicalFile(absolutePath, rootPath, read)
-					}
+					this._queue.push({ event, absolutePath, rootPath, read })
+					this._checkQueue()
 				})
 			}
+
+			await Promise.all(promises)
 
 			this.on('file', file => {
 				let origins = new Set()
@@ -141,6 +139,7 @@ export default class Defiler extends EventEmitter {
 			})
 
 			this._filePromises = null
+			this._processing = false
 			res()
 		})
 
@@ -203,6 +202,25 @@ export default class Defiler extends EventEmitter {
 		if (!this._ready) {
 			throw new Error(`Cannot call ${methodName} before calling exec`)
 		}
+	}
+
+	async _checkQueue() {
+		if (this._processing) {
+			return
+		}
+		this._processing = true
+		while (this._queue.length) {
+			let { event, absolutePath, rootPath, read } = this._queue.shift()
+			if (event === 'deleted') {
+				let path = Defiler._relativePath(rootPath, absolutePath)
+				this._origFiles.delete(path)
+				this._files.delete(path)
+				this.emit('deleted', path)
+			} else {
+				await this._processPhysicalFile(absolutePath, rootPath, read)
+			}
+		}
+		this._processing = false
 	}
 
 	async _processPhysicalFile(absolutePath, rootPath, read) {
