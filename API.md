@@ -103,12 +103,12 @@ Starts the Defiler running. No additional configuration (registering Gazes, tran
 
 ## Operation
 
-### `use(path, origin)`
+### `use(path, { from })`
 
 Waits for a file or array of files to be ready.
 
 - `path` - The path or paths to wait for to become available.
-- `origin` - (optional) A path of a file to re-process if any of the file or files given in `path` change. (Typically, this is the path to the file you are currently transforming or generating.)
+- `from` - (optional) A path of a file to re-process if any of the file or files given in `path` change. (Typically, this is the path to the file you are currently transforming or generating.)
 
 Returns a promise resolving to the `File` instance or an array of `File` instances.
 

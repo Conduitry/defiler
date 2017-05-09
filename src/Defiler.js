@@ -148,16 +148,16 @@ export default class Defiler extends EventEmitter {
 
 	// post-exec methods
 
-	async use(path, origin) {
+	async use(path, { from } = {}) {
 		this._checkAfterExec('use')
 		if (Array.isArray(path)) {
-			return Promise.all(path.map(path => this.use(path, origin)))
+			return Promise.all(path.map(path => this.use(path, { from })))
 		}
-		if (origin) {
-			if (this._dependencies.has(origin)) {
-				this._dependencies.get(origin).add(path)
+		if (from) {
+			if (this._dependencies.has(from)) {
+				this._dependencies.get(from).add(path)
 			} else {
-				this._dependencies.set(origin, new Set([path]))
+				this._dependencies.set(from, new Set([path]))
 			}
 		}
 		if (this._filePromises) {
