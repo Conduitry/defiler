@@ -49,16 +49,31 @@ export default class Defiler extends EventEmitter {
 
 	// pre-exec (configuration) methods
 
-	addGaze(gaze, rootPath, read = true) {
-		this._checkBeforeExec('addGaze')
-		this._gazes.push({ gaze, rootPath, read })
-		this._gazePromises.push(new Promise(res => gaze.on('ready', res)))
-		return this
-	}
+	add(config) {
+		this._checkBeforeExec('add')
 
-	addTransform(transform) {
-		this._checkBeforeExec('addTransform')
-		this._transforms.push({ type: TRANSFORM, transform })
+		// add gaze
+
+		if (config.gaze) {
+			let { gaze, rootPath, read = true } = config
+			this._gazes.push({ gaze, rootPath, read })
+			this._gazePromises.push(new Promise(res => gaze.on('ready', res)))
+		}
+
+		// add transform
+
+		if (config.transform) {
+			let { transform } = config
+			this._transforms.push({ type: TRANSFORM, transform })
+		}
+
+		// add generated file
+
+		if (config.generator) {
+			let { path, generator } = config
+			this._customGenerators.set(path, generator)
+		}
+
 		return this
 	}
 
@@ -77,12 +92,6 @@ export default class Defiler extends EventEmitter {
 	end() {
 		this._checkBeforeExec('end')
 		this._transforms.push({ type: END })
-		return this
-	}
-
-	addGeneratedFile(path, generator) {
-		this._checkBeforeExec('addGeneratedFile')
-		this._customGenerators.set(path, generator)
 		return this
 	}
 
