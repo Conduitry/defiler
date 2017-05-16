@@ -58,7 +58,7 @@ A sorted array of the relative paths of all of the physical files. This can be u
 
 ## Configuration
 
-### `addGaze(gaze, rootPath, read = true)`
+### `add({ gaze, rootPath, read = true })`
 
 Register a Gaze instance.
 
@@ -68,7 +68,7 @@ Register a Gaze instance.
 
 Returns the `Defiler` instance for chaining.
 
-### `addTransform(transform)`
+### `add({ transform })`
 
 Register a new transform to be applied to all files.
 
@@ -84,9 +84,9 @@ Allows conditionally skipping certain transforms in the pipe.
 
 Returns the `Defiler` instance for chaining.
 
-This is used like: `defiler.if(file => someTest(file)).addTransform(onlyIfTrue).else().addTransform(onlyIfFalse).end()`.
+This is used like: `defiler.if(file => someTest(file)).add({ transform: onlyIfTrue }).else().add({ transform: onlyIfFalse }).end()`.
 
-### `addGeneratedFile(path, generator)`
+### `add({ path, generator })`
 
 Register a new generated file, not directly sourced from a physical file.
 
