@@ -1,3 +1,8 @@
+# v0.3.0
+
+- Change second argument of `defiler.use` into an object, in preparation for later features
+- combine various `defiler.add*` methods into one `defiler.add` method
+
 # v0.2.0
 
 - Send file changes through a queue, so we're only processing one at a time
