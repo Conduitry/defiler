@@ -146,9 +146,9 @@ An `origFile` event is emitted when the original version of a physical file has 
 
 A `file` event is emitted after all transforms on a file are complete. It's emitted with two arguments: the file's original relative path and the fully transformed `File` instance.
 
-### `deleted(path)`
+### `deleted(origPath)`
 
-A `deleted` event is emitted when a watched physical file has been deleted. It's emitted with one argument: the relative `path` to the file.
+A `deleted` event is emitted when a watched physical file has been deleted. It's emitted with one argument: the original relative path to the file.
 
 ### `error(origPath, file, err)`
 
