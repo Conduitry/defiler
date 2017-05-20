@@ -138,18 +138,18 @@ Close all of the attached Gazes.
 
 `Defiler` extends Node's `EventEmitter`, and emits four events.
 
-### `origFile(file)`
+### `origFile(origPath, file)`
 
-An `origFile` event is emitted when the original version of a physical file has been read in. It's emitted with one argument, the `File` instance.
+An `origFile` event is emitted when the original version of a physical file has been read in. It's emitted with two arguments: the file's original relative path and the `File` instance.
 
-### `file(file)`
+### `file(origPath, file)`
 
-A `file` event is emitted after all transforms on a file are complete. It's emitted with one argument, the fully transformed `File` instance.
+A `file` event is emitted after all transforms on a file are complete. It's emitted with two arguments: the file's original relative path and the fully transformed `File` instance.
 
 ### `deleted(path)`
 
-A `deleted` event is emitted when a watched physical file has been deleted. It's emitted with one argument, the relative `path` to the file.
+A `deleted` event is emitted when a watched physical file has been deleted. It's emitted with one argument: the relative `path` to the file.
 
-### `error(file, err)`
+### `error(origPath, file, err)`
 
-An `error` event is emitted if a file transform or a file generator throws an exception or returns a promise that rejects. It's emitted with two arguments, the `File` instance in question and the thrown `err`.
+An `error` event is emitted if a file transform or a file generator throws an exception or returns a promise that rejects. It's emitted with three arguments: the file's original relative path, the `File` instance that caused the error, and the thrown error.

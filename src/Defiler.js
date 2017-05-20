@@ -134,10 +134,10 @@ export default class Defiler extends EventEmitter {
 
 			await Promise.all(promises)
 
-			this.on('file', file => {
+			this.on('file', origPath => {
 				let origins = new Set()
 				for (let [origin, deps] of this._dependencies.entries()) {
-					if (deps.has(file.path)) {
+					if (deps.has(origPath)) {
 						origins.add(origin)
 						this._dependencies.delete(origin)
 					}
@@ -189,7 +189,7 @@ export default class Defiler extends EventEmitter {
 		let { path } = file
 		await this._transformFile(file)
 		this._files.set(path, file)
-		this.emit('file', file)
+		this.emit('file', path, file)
 	}
 
 	close() {
@@ -244,7 +244,7 @@ export default class Defiler extends EventEmitter {
 			origFile.bytes = await new Promise((res, rej) => readFile(absolutePath, (err, data) => (err ? rej(err) : res(data))))
 		}
 		this._origFiles.set(path, origFile)
-		this.emit('origFile', origFile)
+		this.emit('origFile', path, origFile)
 		await this._processFile(origFile)
 	}
 
@@ -252,12 +252,13 @@ export default class Defiler extends EventEmitter {
 		let file = Object.assign(new File(), origFile)
 		await this._transformFile(file)
 		this._files.set(origFile.path, file)
-		this.emit('file', file)
+		this.emit('file', origFile.path, file)
 	}
 
 	async _transformFile(file) {
 		let depth = 0
 		let skipDepth = null
+		let { path } = file
 		try {
 			for (let { type, transform, condition } of this._transforms) {
 				if (type === TRANSFORM) {
@@ -283,7 +284,7 @@ export default class Defiler extends EventEmitter {
 				}
 			}
 		} catch (err) {
-			this.emit('error', file, err)
+			this.emit('error', path, file, err)
 		}
 	}
 
@@ -294,7 +295,7 @@ export default class Defiler extends EventEmitter {
 			await this._customGenerators.get(path).call(this, file)
 			await this.addFile(file)
 		} catch (err) {
-			this.emit('error', file, err)
+			this.emit('error', path, file, err)
 		}
 	}
 
