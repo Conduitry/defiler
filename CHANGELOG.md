@@ -1,3 +1,8 @@
+# v0.4.0
+
+- Include `origPath` as new first argument in `origFile`, `file`, and `error` events
+- Fix dependency tracking for rebuilds when a dependency is renamed by a transform
+
 # v0.3.0
 
 - Change second argument of `defiler.use` into an object, in preparation for later features
