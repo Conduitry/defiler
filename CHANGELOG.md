@@ -1,3 +1,7 @@
+# v0.4.1
+
+- Re-process files when a dependency is deleted
+
 # v0.4.0
 
 - Include `origPath` as new first argument in `origFile`, `file`, and `error` events
