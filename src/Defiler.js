@@ -23,7 +23,7 @@ export default class Defiler extends EventEmitter {
 		this._transforms = []
 		this._filePromises = new Map()
 		this._customGenerators = new Map()
-		this._dependencies = new Map()
+		this.dependents = new Map()
 
 		this._processing = false
 		this._queue = []
@@ -134,18 +134,8 @@ export default class Defiler extends EventEmitter {
 
 			await Promise.all(promises)
 
-			this.on('file', origPath => {
-				let origins = new Set()
-				for (let [origin, deps] of this._dependencies.entries()) {
-					if (deps.has(origPath)) {
-						origins.add(origin)
-						this._dependencies.delete(origin)
-					}
-				}
-				for (let originPath of origins) {
-					this.refile(originPath)
-				}
-			})
+			this.on('file', origPath => this._processDependents(origPath))
+			this.on('deleted', origPath => this._processDependents(origPath))
 
 			this._filePromises = null
 			this._processing = false
@@ -163,10 +153,10 @@ export default class Defiler extends EventEmitter {
 			return Promise.all(path.map(path => this.use(path, { from })))
 		}
 		if (from) {
-			if (this._dependencies.has(from)) {
-				this._dependencies.get(from).add(path)
+			if (this.dependents.has(from)) {
+				this.dependents.get(from).add(path)
 			} else {
-				this._dependencies.set(from, new Set([path]))
+				this.dependents.set(from, new Set([path]))
 			}
 		}
 		if (this._filePromises) {
@@ -296,6 +286,19 @@ export default class Defiler extends EventEmitter {
 			await this.addFile(file)
 		} catch (err) {
 			this.emit('error', path, file, err)
+		}
+	}
+
+	_processDependents(origPath) {
+		let origins = new Set()
+		for (let [origin, deps] of this.dependents.entries()) {
+			if (deps.has(origPath)) {
+				origins.add(origin)
+				this.dependents.delete(origin)
+			}
+		}
+		for (let originPath of origins) {
+			this.refile(originPath)
 		}
 	}
 
