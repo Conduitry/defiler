@@ -4,11 +4,6 @@ import { relative } from 'path'
 
 import File from './File.js'
 
-let TRANSFORM = Symbol()
-let IF = Symbol()
-let ELSE = Symbol()
-let END = Symbol()
-
 export default class Defiler extends EventEmitter {
 	constructor() {
 		super()
@@ -63,8 +58,8 @@ export default class Defiler extends EventEmitter {
 		// add transform
 
 		if (config.transform) {
-			let { transform } = config
-			this._transforms.push({ type: TRANSFORM, transform })
+			let { transform, if: if_, not } = config
+			this._transforms.push({ transform, if: if_, not })
 		}
 
 		// add generated file
@@ -74,24 +69,6 @@ export default class Defiler extends EventEmitter {
 			this._customGenerators.set(path, generator)
 		}
 
-		return this
-	}
-
-	if(condition) {
-		this._checkBeforeExec('if')
-		this._transforms.push({ type: IF, condition })
-		return this
-	}
-
-	else() {
-		this._checkBeforeExec('else')
-		this._transforms.push({ type: ELSE })
-		return this
-	}
-
-	end() {
-		this._checkBeforeExec('end')
-		this._transforms.push({ type: END })
 		return this
 	}
 
@@ -134,8 +111,9 @@ export default class Defiler extends EventEmitter {
 
 			await Promise.all(promises)
 
-			this.on('file', origPath => this._processDependents(origPath))
-			this.on('deleted', origPath => this._processDependents(origPath))
+			let _processDependents = this._processDependents.bind(this)
+			this.on('file', _processDependents)
+			this.on('deleted', _processDependents)
 
 			this._filePromises = null
 			this._processing = false
@@ -246,31 +224,11 @@ export default class Defiler extends EventEmitter {
 	}
 
 	async _transformFile(file) {
-		let depth = 0
-		let skipDepth = null
 		let { path } = file
 		try {
-			for (let { type, transform, condition } of this._transforms) {
-				if (type === TRANSFORM) {
-					if (skipDepth === null) {
-						await transform.call(this, file)
-					}
-				} else if (type === IF) {
-					if (skipDepth === null && !condition.call(this, file)) {
-						skipDepth = depth
-					}
-					depth++
-				} else if (type === ELSE) {
-					if (skipDepth === null) {
-						skipDepth = depth - 1
-					} else if (skipDepth === depth - 1) {
-						skipDepth = null
-					}
-				} else if (type === END) {
-					depth--
-					if (skipDepth === depth) {
-						skipDepth = null
-					}
+			for (let { transform, if: if_, not } of this._transforms) {
+				if ((!if_ || (await if_.call(this, file))) && (!not || !await not.call(this, file))) {
+					await transform.call(this, file)
 				}
 			}
 		} catch (err) {
