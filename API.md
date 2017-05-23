@@ -46,11 +46,11 @@ A `Promise` that's resolved once we've completed the initial wave of processing.
 
 ### `origFiles`
 
-A map of relative paths -> `File` instances for the original physical files.
+A map of (original) relative paths to `File` instances for the original physical files.
 
 ### `files`
 
-A map of (original) relative paths -> `File` instances for the transformed files.
+A map of original relative paths to `File` instances for the transformed files.
 
 ### `origPaths`
 
@@ -73,7 +73,7 @@ Returns the `Defiler` instance for chaining.
 Register a new transform to be applied to all files.
 
 - `transform(file)` - a transformer function, which is passed a `File` instance to mutate. In your function, `this` will be the current `Defiler` instance. The function can return a `Promise` to indicate when it's done
-- `if(file)` - _(optional)_ a function that, if present, will be called with the `File` instance before calling the main `transform`. If this returns `false` or a `Promise` resolving to `false`, the transform is skipped
+- `if(file)` - _(optional)_ a function that, if present, will be called with the `File` instance before calling the main `transform`. In your function, `this` will be the current `Defiler` instance. If the function returns `false` or a `Promise` resolving to `false`, the transform is skipped
 
 Returns the `Defiler` instance for chaining.
 
@@ -98,26 +98,26 @@ Starts the Defiler running. No additional configuration (registering Gazes, tran
 
 Waits for a file or array of files to be ready.
 
-- `path` - The path or paths to wait for to become available.
+- `path` - The path, or array of paths, to wait for to become available.
 - `from` - _(optional)_ A path of a file to re-process if any of the file or files given in `path` change. (Typically, this is the path to the file you are currently transforming or generating.)
 
 Returns a `Promise` resolving to the `File` instance or an array of `File` instances.
 
-This can be asked for physical or generated files. If you ask for one or more physical files during the initial wave of processing before everything has been read in and processed, it will wait for the file or files to be ready (and transformed). Asking for something that is neither a known physical file nor a registered generated file will not throw an error, but will instead simple return null.
+This can be asked for physical or generated files. If you ask for one or more physical files during the initial wave of processing before everything has been read in and processed, it will wait for the file or files to be ready (and transformed). Asking for something that is neither a known physical file nor a registered generated file will not throw an error, but will instead simple return undefined.
 
-If a path `origin` is passed, `origin` is registered as depending on the file or files in `path`. When the file or files in `path` change, the file at `origin` will be automatically re-transformed (using `refile`, below). If you're calling `use` inside a transform or generator, `origin` is typically going to be the path of the file you're transforming or generating.
+If a path `from` is passed, `from` is registered as depending on the file or files in `path`. When the file or files in `path` change, the file at `from` will be automatically re-transformed (using `refile`, below). If you're calling `use` inside a transform or generator, `from` is typically going to be the path of the file you're transforming or generating.
 
 ### `refile(path)`
 
-Manually re-transform a file. This can be from a physical file or a generated once. Returns a `Promise` to indicate when all processing is complete. Re-transforming a physical file will use the version of it that was last read into memory. Re-transforming a generated file will call its generator again.
+Manually re-transform a `File`. This can be from a physical file or a generated one. Returns a `Promise` to indicate when all processing is complete. Re-transforming a physical file will use the version of it that was last read into memory. Re-transforming a generated file will call its generator again.
 
 Returns a `Promise` to indicate when all processing is complete.
 
 Typically, you would not need to call this directly, as it would be automatically handled by the dependencies registered by `use`.
 
-### `addFile(defile)`
+### `addFile(file)`
 
-Manually insert a non-physical file, running it through all the transforms.
+Manually insert a non-physical `File`, running it through all the transforms.
 
 Returns a `Promise` to indicate when all processing is complete.
 
@@ -127,7 +127,7 @@ Close all of the attached Gazes.
 
 ## Events
 
-`Defiler` extends Node's `EventEmitter`, and emits four events.
+`Defiler` extends Node's `EventEmitter`, and emits four kinds of events.
 
 ### `origFile(origPath, file)`
 
