@@ -42,7 +42,7 @@ A new `Defiler` instance to represent a collection of watched physical files and
 
 ### `ready`
 
-A promise that's resolved once we've completed the initial wave of processing. This remains unchanged as later watches or changes are triggered.
+A `Promise` that's resolved once we've completed the initial wave of processing. This remains unchanged as later watches or changes are triggered.
 
 ### `origFiles`
 
@@ -68,30 +68,21 @@ Register a Gaze instance.
 
 Returns the `Defiler` instance for chaining.
 
-### `add({ transform })`
+### `add({ transform, if })`
 
 Register a new transform to be applied to all files.
 
-- `transform(file)` - a transformer function, which is passed a `File` instance to mutate. In your function, `this` will be the current `Defiler` instance. The function should return a promise to indicate when it's done
+- `transform(file)` - a transformer function, which is passed a `File` instance to mutate. In your function, `this` will be the current `Defiler` instance. The function can return a `Promise` to indicate when it's done
+- `if(file)` - _(optional)_ a function that, if present, will be called with the `File` instance before calling the main `transform`. If this returns `false` or a `Promise` resolving to `false`, the transform is skipped
 
 Returns the `Defiler` instance for chaining.
-
-### `if(condition)` / `else()` / `end()`
-
-Allows conditionally skipping certain transforms in the pipe.
-
-- `condition(file)` is passed the `File` instance.  In your function, `this` will be the current `Defiler` instance. The function should return `true` or `false`
-
-Returns the `Defiler` instance for chaining.
-
-This is used like: `defiler.if(file => someTest(file)).add({ transform: onlyIfTrue }).else().add({ transform: onlyIfFalse }).end()`.
 
 ### `add({ path, generator })`
 
 Register a new generated file, not directly sourced from a physical file.
 
 - `path` - the relative path of the file to register the generator for
-- `generator(file)` - a function that is passed a new `File` instance containing only a path, which it should then mutate.  In your function, `this` will be the current `Defiler` instance. The function should return a promise to indicate when it's done
+- `generator(file)` - a function that is passed a new `File` instance containing only a path, which it should then mutate.  In your function, `this` will be the current `Defiler` instance. The function can return a `Promise` to indicate when it's done
 
 Returns the `Defiler` instance for chaining.
 
@@ -108,9 +99,9 @@ Starts the Defiler running. No additional configuration (registering Gazes, tran
 Waits for a file or array of files to be ready.
 
 - `path` - The path or paths to wait for to become available.
-- `from` - (optional) A path of a file to re-process if any of the file or files given in `path` change. (Typically, this is the path to the file you are currently transforming or generating.)
+- `from` - _(optional)_ A path of a file to re-process if any of the file or files given in `path` change. (Typically, this is the path to the file you are currently transforming or generating.)
 
-Returns a promise resolving to the `File` instance or an array of `File` instances.
+Returns a `Promise` resolving to the `File` instance or an array of `File` instances.
 
 This can be asked for physical or generated files. If you ask for one or more physical files during the initial wave of processing before everything has been read in and processed, it will wait for the file or files to be ready (and transformed). Asking for something that is neither a known physical file nor a registered generated file will not throw an error, but will instead simple return null.
 
@@ -118,9 +109,9 @@ If a path `origin` is passed, `origin` is registered as depending on the file or
 
 ### `refile(path)`
 
-Manually re-transform a file. This can be from a physical file or a generated once. Returns a promise to indicate when all processing is complete. Re-transforming a physical file will use the version of it that was last read into memory. Re-transforming a generated file will call its generator again.
+Manually re-transform a file. This can be from a physical file or a generated once. Returns a `Promise` to indicate when all processing is complete. Re-transforming a physical file will use the version of it that was last read into memory. Re-transforming a generated file will call its generator again.
 
-Returns a promise to indicate when all processing is complete.
+Returns a `Promise` to indicate when all processing is complete.
 
 Typically, you would not need to call this directly, as it would be automatically handled by the dependencies registered by `use`.
 
@@ -128,7 +119,7 @@ Typically, you would not need to call this directly, as it would be automaticall
 
 Manually insert a non-physical file, running it through all the transforms.
 
-Returns a promise to indicate when all processing is complete.
+Returns a `Promise` to indicate when all processing is complete.
 
 ### `close()`
 
@@ -148,8 +139,8 @@ A `file` event is emitted after all transforms on a file are complete. It's emit
 
 ### `deleted(origPath)`
 
-A `deleted` event is emitted when a watched physical file has been deleted. It's emitted with one argument: the original relative path to the file.
+A `deleted` event is emitted when a watched physical file has been deleted. It's emitted with one argument: the (original) relative path to the file.
 
 ### `error(origPath, file, err)`
 
-An `error` event is emitted if a file transform or a file generator throws an exception or returns a promise that rejects. It's emitted with three arguments: the file's original relative path, the `File` instance that caused the error, and the thrown error.
+An `error` event is emitted if a file transform or a file generator throws an exception or returns a `Promise` that rejects. It's emitted with three arguments: the file's original relative path, the `File` instance that caused the error, and the thrown error.
