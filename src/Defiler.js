@@ -58,8 +58,8 @@ export default class Defiler extends EventEmitter {
 		// add transform
 
 		if (config.transform) {
-			let { transform, if: if_, not } = config
-			this._transforms.push({ transform, if: if_, not })
+			let { transform, if: if_ } = config
+			this._transforms.push({ transform, if: if_ })
 		}
 
 		// add generated file
@@ -226,8 +226,8 @@ export default class Defiler extends EventEmitter {
 	async _transformFile(file) {
 		let { path } = file
 		try {
-			for (let { transform, if: if_, not } of this._transforms) {
-				if ((!if_ || (await if_.call(this, file))) && (!not || !await not.call(this, file))) {
+			for (let { transform, if: if_ } of this._transforms) {
+				if (!if_ || (await if_.call(this, file))) {
 					await transform.call(this, file)
 				}
 			}
