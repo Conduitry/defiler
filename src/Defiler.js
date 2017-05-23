@@ -18,7 +18,7 @@ export default class Defiler extends EventEmitter {
 		this._transforms = []
 		this._filePromises = new Map()
 		this._customGenerators = new Map()
-		this.dependents = new Map()
+		this._dependents = new Map()
 
 		this._processing = false
 		this._queue = []
@@ -131,10 +131,10 @@ export default class Defiler extends EventEmitter {
 			return Promise.all(path.map(path => this.use(path, { from })))
 		}
 		if (from) {
-			if (this.dependents.has(from)) {
-				this.dependents.get(from).add(path)
+			if (this._dependents.has(from)) {
+				this._dependents.get(from).add(path)
 			} else {
-				this.dependents.set(from, new Set([path]))
+				this._dependents.set(from, new Set([path]))
 			}
 		}
 		if (this._filePromises) {
@@ -249,10 +249,10 @@ export default class Defiler extends EventEmitter {
 
 	_processDependents(origPath) {
 		let origins = new Set()
-		for (let [origin, deps] of this.dependents.entries()) {
+		for (let [origin, deps] of this._dependents.entries()) {
 			if (deps.has(origPath)) {
 				origins.add(origin)
-				this.dependents.delete(origin)
+				this._dependents.delete(origin)
 			}
 		}
 		for (let originPath of origins) {
