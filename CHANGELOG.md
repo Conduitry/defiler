@@ -1,3 +1,7 @@
+# v0.5.0
+
+- Simplify if/else handling of conditional transforms - see API docs
+
 # v0.4.1
 
 - Re-process files when a dependency is deleted
