@@ -248,15 +248,15 @@ export default class Defiler extends EventEmitter {
 	}
 
 	_processDependents(origPath) {
-		let origins = new Set()
-		for (let [origin, deps] of this._dependents.entries()) {
-			if (deps.has(origPath)) {
-				origins.add(origin)
-				this._dependents.delete(origin)
+		let dependents = new Set()
+		for (let [dependent, dependencies] of this._dependents.entries()) {
+			if (dependencies.has(origPath)) {
+				dependents.add(dependent)
+				this._dependents.delete(dependent)
 			}
 		}
-		for (let originPath of origins) {
-			this.refile(originPath)
+		for (let dependent of dependents) {
+			this.refile(dependent)
 		}
 	}
 
