@@ -96,18 +96,18 @@ Starts the Defiler running. No additional configuration (registering Gazes, tran
 
 ## Operation
 
-### `use(path, { from })`
+### `get(path, dependent)`
 
 Waits for a file or array of files to be ready.
 
 - `path` - the path, or array of paths, to wait for to become available
-- `from` - _(optional)_ a path of a file to re-process if any of the file or files given in `path` change. Typically, this is the path to the file you are currently transforming or generating
+- `dependent` - _(optional)_ a path of a file to re-process if any of the file or files given in `path` change. Typically, this is the path to the file you are currently transforming or generating
 
 Returns a `Promise` resolving to the `File` instance or an array of `File` instances.
 
-This can be asked for physical or generated files. If you ask for one or more physical files during the initial wave of processing before everything has been read in and processed, it will wait for the file or files to be ready (and transformed). Asking for something that is neither a known physical file nor a registered generated file will not throw an error, but will instead simple return undefined.
+This can be asked for physical or generated files. If you ask for one or more physical files during the initial wave of processing before everything has been read in and processed, it will wait for the file or files to be ready (and transformed). Requesting something that is neither a known physical file nor a registered generated file will not throw an error, but will instead simply return `undefined`.
 
-If a path `from` is passed, `from` is registered as depending on the file or files in `path`. When the file or files in `path` change, the file at `from` will be automatically re-transformed (using `refile`, below). If you're calling `use` inside a transform or generator, `from` is typically going to be the path of the file you're transforming or generating.
+If a path `dependent` is passed, `dependent` is registered as depending on the file or files in `path`. When the file or files in `path` change, the file at `dependent` will be automatically re-transformed (using `refile`, below). If you're calling `get` inside a transform or generator, `dependent` should typically be the path of the file you're transforming or generating.
 
 ### `refile(path)`
 
@@ -115,7 +115,7 @@ Manually re-transform a `File`. This can be from a physical file or a generated 
 
 Returns a `Promise` to indicate when all processing is complete.
 
-Typically, you would not need to call this directly, as it would be automatically handled by the dependencies registered by `use`.
+Typically, you would not need to call this directly, as it would be automatically handled by the dependencies registered by `get`.
 
 ### `addFile(file)`
 
