@@ -1,3 +1,8 @@
+# v0.6.0
+
+- Add option to `defiler.exec` to automatically close Gazes after initial wave of processing
+- Rename `defiler.use` to `defiler.get` and tidy its API - see docs
+
 # v0.5.0
 
 - Simplify if/else handling of conditional transforms - see API docs
@@ -14,7 +19,7 @@
 # v0.3.0
 
 - Change second argument of `defiler.use` into an object, in preparation for later features
-- combine various `defiler.add*` methods into one `defiler.add` method
+- Combine various `defiler.add*` methods into one `defiler.add` method
 
 # v0.2.0
 
