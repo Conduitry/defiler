@@ -74,7 +74,7 @@ export default class Defiler extends EventEmitter {
 
 	// exec
 
-	exec() {
+	exec({ close = false } = {}) {
 		this._checkBeforeExec('exec')
 		this._processing = true
 		this._ready = new Promise(async res => {
@@ -102,11 +102,15 @@ export default class Defiler extends EventEmitter {
 				this._filePromises.set(path, promise)
 			}
 
-			for (let { gaze, rootPath, read } of this._gazes) {
-				gaze.on('all', (event, absolutePath) => {
-					this._queue.push({ event, absolutePath, rootPath, read })
-					this._checkQueue()
-				})
+			if (close) {
+				this.close()
+			} else {
+				for (let { gaze, rootPath, read } of this._gazes) {
+					gaze.on('all', (event, absolutePath) => {
+						this._queue.push({ event, absolutePath, rootPath, read })
+						this._checkQueue()
+					})
+				}
 			}
 
 			await Promise.all(promises)

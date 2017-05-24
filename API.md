@@ -64,7 +64,7 @@ Register a Gaze instance.
 
 - `gaze` - the Gaze instance
 -	`rootPath` - the path that all of our paths should be relative to
-- `read` - whether to actually read in the contents of the files for this Gaze. If `false`, the files will still be run through all of the transforms, but they will have null `bytes` and `text`
+- `read` - _(optional)_ whether to actually read in the contents of the files for this Gaze. If `false`, the files will still be run through all of the transforms, but they will have null `bytes` and `text`
 
 Returns the `Defiler` instance for chaining.
 
@@ -88,9 +88,11 @@ Returns the `Defiler` instance for chaining.
 
 ## Execution
 
-### `exec()`
+### `exec({ close = false })`
 
 Starts the Defiler running. No additional configuration (registering Gazes, transforms, or generated files) can happen after this.
+
+- `close` - _(optional)_ whether to immediately close all of the attached Gazes after the initial wave of processing
 
 ## Operation
 
@@ -98,8 +100,8 @@ Starts the Defiler running. No additional configuration (registering Gazes, tran
 
 Waits for a file or array of files to be ready.
 
-- `path` - The path, or array of paths, to wait for to become available.
-- `from` - _(optional)_ A path of a file to re-process if any of the file or files given in `path` change. (Typically, this is the path to the file you are currently transforming or generating.)
+- `path` - the path, or array of paths, to wait for to become available
+- `from` - _(optional)_ a path of a file to re-process if any of the file or files given in `path` change. Typically, this is the path to the file you are currently transforming or generating
 
 Returns a `Promise` resolving to the `File` instance or an array of `File` instances.
 
