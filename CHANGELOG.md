@@ -1,3 +1,7 @@
+# v0.6.1
+
+- Add second argument to transform and generator callbacks which is a convenience function calling `defiler.get` with the appropriate `dependent`.
+
 # v0.6.0
 
 - Add option to `defiler.exec` to automatically close Gazes after initial wave of processing
