@@ -77,7 +77,7 @@ export default class Defiler extends EventEmitter {
 	exec({ close = false } = {}) {
 		this._checkBeforeExec('exec')
 		this._processing = true
-		this._ready = new Promise(async res => {
+		this._ready = (async () => {
 			await Promise.all(this._gazePromises)
 			this._gazePromises = null
 
@@ -121,8 +121,7 @@ export default class Defiler extends EventEmitter {
 
 			this._filePromises = null
 			this._processing = false
-			res()
-		})
+		})()
 
 		return this
 	}
@@ -232,7 +231,7 @@ export default class Defiler extends EventEmitter {
 		try {
 			for (let { transform, if: if_ } of this._transforms) {
 				if (!if_ || (await if_.call(this, file))) {
-					await transform.call(this, file)
+					await transform.call(this, file, dependency => this.get(dependency, path))
 				}
 			}
 		} catch (err) {
@@ -244,7 +243,7 @@ export default class Defiler extends EventEmitter {
 		let file
 		try {
 			file = new File(path)
-			await this._customGenerators.get(path).call(this, file)
+			await this._customGenerators.get(path).call(this, file, dependency => this.get(dependency, path))
 			await this.addFile(file)
 		} catch (err) {
 			this.emit('error', path, file, err)

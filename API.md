@@ -72,7 +72,7 @@ Returns the `Defiler` instance for chaining.
 
 Register a new transform to be applied to all files.
 
-- `transform(file)` - a transformer function, which is passed a `File` instance to mutate. In your function, `this` will be the current `Defiler` instance. The function can return a `Promise` to indicate when it's done
+- `transform(file, get(path))` - a transformer function, which is passed a `File` instance to mutate; it is also passed a function `get(path)` which calls the `get(path, dependent)` method (see below) with the appropriate `dependent` (that is, the current file's path), as a convenience. In your function, `this` will be the current `Defiler` instance. The function can return a `Promise` to indicate when it's done
 - `if(file)` - _(optional)_ a function that, if present, will be called with the `File` instance before calling the main `transform`. In your function, `this` will be the current `Defiler` instance. If the function returns `false` or a `Promise` resolving to `false`, the transform is skipped
 
 Returns the `Defiler` instance for chaining.
@@ -82,7 +82,7 @@ Returns the `Defiler` instance for chaining.
 Register a new generated file, not directly sourced from a physical file.
 
 - `path` - the relative path of the file to register the generator for
-- `generator(file)` - a function that is passed a new `File` instance containing only a path, which it should then mutate.  In your function, `this` will be the current `Defiler` instance. The function can return a `Promise` to indicate when it's done
+- `generator(file, get(path))` - a function that is passed a new `File` instance containing only a path, which it should then mutate; it is also passed a function `get(path)` which calls the `get(path, dependent)` method (see below) with the appropriate `dependent` (that is, the current file's path), as a convenience.  In your function, `this` will be the current `Defiler` instance. The function can return a `Promise` to indicate when it's done
 
 Returns the `Defiler` instance for chaining.
 
@@ -108,6 +108,8 @@ Returns a `Promise` resolving to the `File` instance or an array of `File` insta
 This can be asked for physical or generated files. If you ask for one or more physical files during the initial wave of processing before everything has been read in and processed, it will wait for the file or files to be ready (and transformed). Requesting something that is neither a known physical file nor a registered generated file will not throw an error, but will instead simply return `undefined`.
 
 If a path `dependent` is passed, `dependent` is registered as depending on the file or files in `path`. When the file or files in `path` change, the file at `dependent` will be automatically re-transformed (using `refile`, below). If you're calling `get` inside a transform or generator, `dependent` should typically be the path of the file you're transforming or generating.
+
+Typically, you would not call this directly, and would instead call the function passed as a second argument to the transform or generator callback, which then calls this method with the appropriate `dependent`.
 
 ### `refile(path)`
 
