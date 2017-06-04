@@ -9,14 +9,12 @@
 	],
 	"scripts": {
 		"build": "rollup -c",
-		"eslint": "eslint",
-		"prettier": "prettier",
 		"lint": "eslint src",
-		"format": "prettier --write --print-width 160 --use-tabs --no-semi --single-quote --trailing-comma es5 \"src/**/*.js\""
+		"format": "prettier --write --use-tabs --no-semi --single-quote --trailing-comma es5 \"src/**/*.js\""
 	},
 	"devDependencies": {
 		"eslint": "^3.19.0",
-		"prettier": "^1.2.2",
+		"prettier": "^1.4.2",
 		"rollup": "^0.41.6"
 	},
 	"engines": {

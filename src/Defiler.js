@@ -87,7 +87,11 @@ export default class Defiler extends EventEmitter {
 				let watched = gaze.watched()
 				for (let dir in watched) {
 					for (let absolutePath of watched[dir]) {
-						let promise = this._processPhysicalFile(absolutePath, rootPath, read)
+						let promise = this._processPhysicalFile(
+							absolutePath,
+							rootPath,
+							read
+						)
 						promises.push(promise)
 						let path = Defiler._relativePath(rootPath, absolutePath)
 						this._filePromises.set(path, promise)
@@ -204,7 +208,9 @@ export default class Defiler extends EventEmitter {
 	}
 
 	async _processPhysicalFile(absolutePath, rootPath, read) {
-		let fileStat = await new Promise((res, rej) => stat(absolutePath, (err, data) => (err ? rej(err) : res(data))))
+		let fileStat = await new Promise((res, rej) =>
+			stat(absolutePath, (err, data) => (err ? rej(err) : res(data)))
+		)
 		if (!fileStat.isFile()) {
 			return
 		}
@@ -212,7 +218,9 @@ export default class Defiler extends EventEmitter {
 		let origFile = new File(path)
 		origFile.stat = fileStat
 		if (read) {
-			origFile.bytes = await new Promise((res, rej) => readFile(absolutePath, (err, data) => (err ? rej(err) : res(data))))
+			origFile.bytes = await new Promise((res, rej) =>
+				readFile(absolutePath, (err, data) => (err ? rej(err) : res(data)))
+			)
 		}
 		this._origFiles.set(path, origFile)
 		this.emit('origFile', path, origFile)
@@ -231,7 +239,9 @@ export default class Defiler extends EventEmitter {
 		try {
 			for (let { transform, if: if_ } of this._transforms) {
 				if (!if_ || (await if_.call(this, file))) {
-					await transform.call(this, file, dependency => this.get(dependency, path))
+					await transform.call(this, file, dependency =>
+						this.get(dependency, path)
+					)
 				}
 			}
 		} catch (err) {
@@ -243,7 +253,9 @@ export default class Defiler extends EventEmitter {
 		let file
 		try {
 			file = new File(path)
-			await this._customGenerators.get(path).call(this, file, dependency => this.get(dependency, path))
+			await this._customGenerators
+				.get(path)
+				.call(this, file, dependency => this.get(dependency, path))
 			await this.addFile(file)
 		} catch (err) {
 			this.emit('error', path, file, err)
