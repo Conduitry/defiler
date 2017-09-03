@@ -1,7 +1,10 @@
 export default {
-	entry: './src/index.js',
+	input: './src/index.js',
 	external: name => /^[-a-z]+$/.test(name),
 	interop: false,
-	sourceMap: true,
-	targets: [{ dest: './dist/index.cjs.js', format: 'cjs' }, { dest: './dist/index.es.js', format: 'es' }],
+	sourcemap: true,
+	output: [
+		{ file: './dist/index.cjs.js', format: 'cjs' },
+		{ file: './dist/index.es.js', format: 'es' },
+	],
 }
