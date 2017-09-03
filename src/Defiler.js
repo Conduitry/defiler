@@ -87,6 +87,10 @@ export default class Defiler extends EventEmitter {
 				let watched = gaze.watched()
 				for (let dir in watched) {
 					for (let absolutePath of watched[dir]) {
+						if (/[/\\]$/.test(absolutePath)) {
+							continue
+						}
+
 						let promise = this._processPhysicalFile(
 							absolutePath,
 							rootPath,
