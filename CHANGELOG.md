@@ -1,3 +1,7 @@
+# v0.7.0
+
+- Change several APIs to use objects as named parameters - see docs
+
 # v0.6.2
 
 - Do not include directories in `defiler.origFiles`/`defiler.files`/`defiler.origPaths`.
