@@ -1,5 +1,0 @@
-# TODO
-
-- maybe some sort of way to have parameterized generated files. Not sure how this would look exactly. There could be some files that we want to process in one of two (or more) ways, depending on where they're used from, but we can't tell from the file itself how it should be processed. We could push responsibility for this processing into the transform etc. that needs the processed file, but that doesn't seem ideal, as when one dependency changes that would involve re-processing other unchanged things we've already processed. It might be best if this were a whole separate third type of thing, apart from physical and generated files
-
- - I'm probably leaning away from this being Defiler's responsibility. This is something that can be handled by the consuming project. This 'contextual processing' can be done on-demand, and the values can be cached by storing them directly on the `File` instance. The cache will be automatically invalidated in normal cases, when necessary the instance will already be getting discarded and re-created from the `File` instance for the original file on disk

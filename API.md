@@ -72,8 +72,8 @@ Returns the `Defiler` instance for chaining.
 
 Register a new transform to be applied to all files.
 
-- `transform(file, get(path))` - a transformer function, which is passed a `File` instance to mutate; it is also passed a function `get(path)` which calls the `get(path, dependent)` method (see below) with the appropriate `dependent` (that is, the current file's path), as a convenience. In your function, `this` will be the current `Defiler` instance. The function can return a `Promise` to indicate when it's done
-- `if(file)` - _(optional)_ a function that, if present, will be called with the `File` instance before calling the main `transform`. In your function, `this` will be the current `Defiler` instance. If the function returns `false` or a `Promise` resolving to `false`, the transform is skipped
+- `transform({ defiler, path, file, get })` - a transformer function, which is passed an object containing the `Defiler` instance, the original `path` of the file, the `File` instance to mutate, and a function `get(path)` which calls the `get(path, dependent)` method (see below) with the appropriate `dependent` (that is, the current file's path), as a convenience. The function can return a `Promise` to indicate when it's done
+- `if({ defiler, path, file })` - _(optional)_ a function that, if present, will be called (before calling the main `transform`) with an object containing the `Defiler` instance, the original `path` of the file, and the `File` instance. If the function returns `false` or a `Promise` resolving to `false`, the transform is skipped
 
 Returns the `Defiler` instance for chaining.
 
@@ -82,7 +82,7 @@ Returns the `Defiler` instance for chaining.
 Register a new generated file, not directly sourced from a physical file.
 
 - `path` - the relative path of the file to register the generator for
-- `generator(file, get(path))` - a function that is passed a new `File` instance containing only a path, which it should then mutate; it is also passed a function `get(path)` which calls the `get(path, dependent)` method (see below) with the appropriate `dependent` (that is, the current file's path), as a convenience.  In your function, `this` will be the current `Defiler` instance. The function can return a `Promise` to indicate when it's done
+- `generator({ defiler, file, get })` - a generator function, which is passed an object containing the `Defiler` instance, a new `File` instance to mutate containing only a path, and a function `get(path)` which calls the `get(path, dependent)` method (see below) with the appropriate `dependent` (that is, the current file's path), as a convenience. The function can return a `Promise` to indicate when it's done
 
 Returns the `Defiler` instance for chaining.
 
@@ -93,6 +93,8 @@ Returns the `Defiler` instance for chaining.
 Starts the Defiler running. No additional configuration (registering Gazes, transforms, or generated files) can happen after this.
 
 - `close` - _(optional)_ whether to immediately close all of the attached Gazes after the initial wave of processing
+
+Returns the `Defiler` instance for chaining.
 
 ## Operation
 
@@ -133,18 +135,18 @@ Close all of the attached Gazes.
 
 `Defiler` extends Node's `EventEmitter`, and emits four kinds of events.
 
-### `origFile(origPath, file)`
+### `origFile({ defiler, file })`
 
-An `origFile` event is emitted when the original version of a physical file has been read in. It's emitted with two arguments: the file's original relative path and the `File` instance.
+An `origFile` event is emitted when the original version of a physical file has been read in. It's emitted with an object containing the `Defiler` instance and the `File` instance.
 
-### `file(origPath, file)`
+### `file({ defiler, path, file })`
 
-A `file` event is emitted after all transforms on a file are complete. It's emitted with two arguments: the file's original relative path and the fully transformed `File` instance.
+A `file` event is emitted after all transforms on a file are complete. It's emitted with an object containing the `Defiler` instance, the file's original relative `path`, and the fully transformed `File` instance.
 
-### `deleted(origPath)`
+### `deleted({ defiler, path })`
 
-A `deleted` event is emitted when a watched physical file has been deleted. It's emitted with one argument: the (original) relative path to the file.
+A `deleted` event is emitted when a watched physical file has been deleted. It's emitted with an object containing the `Defiler` instance and the (original) relative `path` to the file.
 
-### `error(origPath, file, err)`
+### `error({ defiler, path, file, error })`
 
-An `error` event is emitted if a file transform or a file generator throws an exception or returns a `Promise` that rejects. It's emitted with three arguments: the file's original relative path, the `File` instance that caused the error, and the thrown error.
+An `error` event is emitted if a file transform or a file generator throws an exception or returns a `Promise` that rejects. It's emitted with an object containing the `Defiler` instance, the file's original relative `path`, the `File` instance that caused the error, and the thrown `error`.
