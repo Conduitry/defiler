@@ -168,7 +168,7 @@ export default class Defiler extends EventEmitter {
 		let { path } = file
 		await this._transformFile(file)
 		this._files.set(path, file)
-		this.emit('file', path, file)
+		this.emit('file', { defiler: this, path, file })
 	}
 
 	close() {
@@ -203,7 +203,7 @@ export default class Defiler extends EventEmitter {
 				let path = Defiler._relativePath(rootPath, absolutePath)
 				this._origFiles.delete(path)
 				this._files.delete(path)
-				this.emit('deleted', path)
+				this.emit('deleted', { defiler: this, path })
 			} else {
 				await this._processPhysicalFile(absolutePath, rootPath, read)
 			}
@@ -227,7 +227,7 @@ export default class Defiler extends EventEmitter {
 			)
 		}
 		this._origFiles.set(path, origFile)
-		this.emit('origFile', path, origFile)
+		this.emit('origFile', { defiler: this, file: origFile })
 		await this._processFile(origFile)
 	}
 
@@ -235,21 +235,24 @@ export default class Defiler extends EventEmitter {
 		let file = Object.assign(new File(), origFile)
 		await this._transformFile(file)
 		this._files.set(origFile.path, file)
-		this.emit('file', origFile.path, file)
+		this.emit('file', { defiler: this, path: origFile.path, file })
 	}
 
 	async _transformFile(file) {
 		let { path } = file
 		try {
 			for (let { transform, if: if_ } of this._transforms) {
-				if (!if_ || (await if_.call(this, file))) {
-					await transform.call(this, file, dependency =>
-						this.get(dependency, path)
-					)
+				if (!if_ || (await if_({ defiler: this, path, file }))) {
+					await transform({
+						defiler: this,
+						path,
+						file,
+						get: dependency => this.get(dependency, path),
+					})
 				}
 			}
-		} catch (err) {
-			this.emit('error', path, file, err)
+		} catch (error) {
+			this.emit('error', { defiler: this, path, file, error })
 		}
 	}
 
@@ -257,19 +260,21 @@ export default class Defiler extends EventEmitter {
 		let file
 		try {
 			file = new File(path)
-			await this._customGenerators
-				.get(path)
-				.call(this, file, dependency => this.get(dependency, path))
+			await this._customGenerators.get(path)({
+				defiler: this,
+				file,
+				get: dependency => this.get(dependency, path),
+			})
 			await this.addFile(file)
-		} catch (err) {
-			this.emit('error', path, file, err)
+		} catch (error) {
+			this.emit('error', { defiler: this, path, file, error })
 		}
 	}
 
-	_processDependents(origPath) {
+	_processDependents({ path }) {
 		let dependents = new Set()
 		for (let [dependent, dependencies] of this._dependents.entries()) {
-			if (dependencies.has(origPath)) {
+			if (dependencies.has(path)) {
 				dependents.add(dependent)
 				this._dependents.delete(dependent)
 			}
