@@ -34,13 +34,13 @@ If you need some task management, that's outside the scope of this library. Just
 
 ## Documentation
 
-- [usage](USAGE.md#readme)
+- [guide](GUIDE.md#readme)
 - [api](API.md#readme)
 - [changelog](CHANGELOG.md#readme)
 - [homepage](https://cndtr.io/defiler/)
 
 ## License
 
-Copyright (c) 2017 Conduitry
+Copyright (c) 2017-2018 Conduitry
 
 - [MIT](LICENSE)

@@ -125,6 +125,8 @@ Typically, you would not need to call this directly, as it would be automaticall
 
 Manually insert a non-physical `File`, running it through all the transforms.
 
+For convenience, you can also call this with a plain old JavaScript object, and a new `File` instance will be created for you with fields `Object.assign`ed from the object.
+
 Returns a `Promise` to indicate when all processing is complete.
 
 ### `close()`
