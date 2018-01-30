@@ -1,3 +1,7 @@
+# v0.7.1
+
+- Allow passing a POJO to `defiler.addFile` instead of a `File` instance
+
 # v0.7.0
 
 - Change several APIs to use objects as named parameters - see docs
