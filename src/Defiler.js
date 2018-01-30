@@ -166,6 +166,9 @@ export default class Defiler extends EventEmitter {
 	async addFile(file) {
 		this._checkAfterExec('addFile')
 		let { path } = file
+		if (!(file instanceof File)) {
+			file = Object.assign(new File(), file)
+		}
 		await this._transformFile(file)
 		this._files.set(path, file)
 		this.emit('file', { defiler: this, path, file })
