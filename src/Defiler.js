@@ -1,6 +1,6 @@
 import EventEmitter from 'events'
 import { readFile, stat } from 'fs'
-import { relative } from 'path'
+import { join, relative } from 'path'
 
 import File from './File.js'
 
@@ -12,8 +12,8 @@ export default class Defiler extends EventEmitter {
 		this._files = new Map()
 		this._ready = null
 
-		this._gazes = []
-		this._gazePromises = []
+		this._chokidars = []
+		this._chokidarPromises = []
 
 		this._transforms = []
 		this._filePromises = new Map()
@@ -47,12 +47,12 @@ export default class Defiler extends EventEmitter {
 	add(config) {
 		this._checkBeforeExec('add')
 
-		// add gaze
+		// add chokidar
 
-		if (config.gaze) {
-			let { gaze, rootPath, read = true } = config
-			this._gazes.push({ gaze, rootPath, read })
-			this._gazePromises.push(new Promise(res => gaze.on('ready', res)))
+		if (config.chokidar) {
+			let { chokidar, rootPath, read = true } = config
+			this._chokidars.push({ chokidar, rootPath, read })
+			this._chokidarPromises.push(new Promise(res => chokidar.on('ready', res)))
 		}
 
 		// add transform
@@ -78,16 +78,17 @@ export default class Defiler extends EventEmitter {
 		this._checkBeforeExec('exec')
 		this._processing = true
 		this._ready = (async () => {
-			await Promise.all(this._gazePromises)
-			this._gazePromises = null
+			await Promise.all(this._chokidarPromises)
+			this._chokidarPromises = null
 
 			let promises = []
 
-			for (let { gaze, rootPath, read } of this._gazes) {
-				let watched = gaze.watched()
+			for (let { chokidar, rootPath, read } of this._chokidars) {
+				let watched = chokidar.getWatched()
 				for (let dir in watched) {
-					for (let absolutePath of watched[dir]) {
-						if (/[/\\]$/.test(absolutePath)) {
+					for (let name of watched[dir]) {
+						let absolutePath = join(dir, name)
+						if (watched[absolutePath]) {
 							continue
 						}
 
@@ -113,8 +114,8 @@ export default class Defiler extends EventEmitter {
 			if (close) {
 				this.close()
 			} else {
-				for (let { gaze, rootPath, read } of this._gazes) {
-					gaze.on('all', (event, absolutePath) => {
+				for (let { chokidar, rootPath, read } of this._chokidars) {
+					chokidar.on('all', (event, absolutePath) => {
 						this._queue.push({ event, absolutePath, rootPath, read })
 						this._checkQueue()
 					})
@@ -176,8 +177,8 @@ export default class Defiler extends EventEmitter {
 
 	close() {
 		this._checkAfterExec('close')
-		for (let { gaze } of this._gazes) {
-			gaze.close()
+		for (let { chokidar } of this._chokidars) {
+			chokidar.close()
 		}
 	}
 
@@ -202,13 +203,13 @@ export default class Defiler extends EventEmitter {
 		this._processing = true
 		while (this._queue.length) {
 			let { event, absolutePath, rootPath, read } = this._queue.shift()
-			if (event === 'deleted') {
+			if (event === 'add' || event === 'change') {
+				await this._processPhysicalFile(absolutePath, rootPath, read)
+			} else if (event === 'unlink') {
 				let path = Defiler._relativePath(rootPath, absolutePath)
 				this._origFiles.delete(path)
 				this._files.delete(path)
 				this.emit('deleted', { defiler: this, path })
-			} else {
-				await this._processPhysicalFile(absolutePath, rootPath, read)
 			}
 		}
 		this._processing = false
@@ -288,6 +289,9 @@ export default class Defiler extends EventEmitter {
 	}
 
 	static _relativePath(rootPath, absolutePath) {
-		return relative(rootPath, absolutePath).replace(/\\/g, '/')
+		return (rootPath ? relative(rootPath, absolutePath) : absolutePath).replace(
+			/\\/g,
+			'/'
+		)
 	}
 }
