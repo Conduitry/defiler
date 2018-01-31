@@ -1,3 +1,7 @@
+# v0.8.0
+
+- Switch from using Gaze to Chokidar for the underlying file watching library
+
 # v0.7.1
 
 - Allow passing a POJO to `defiler.addFile` instead of a `File` instance
