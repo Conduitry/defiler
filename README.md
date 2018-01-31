@@ -20,8 +20,6 @@ Files can be made to depend on other files, so that changes to a dependency caus
 
 Any transform or generator can also create additional files (which will then be run through all of the transforms). There's currently no way to make this additional file depend on any others for the purposes of automatic re-transformation, as the file would generally just be re-added when that transform or generator is run again.
 
-Gaze is used as the underlying watcher for the simple reason that it provided an easy way to get a list of all of the currently watched files, so I didn't have to traverse the directory's initial contents at the start of the build.
-
 If you need to write the transformed files to disk, that's its own transform. Just leave the file object untouched but write the file to disk in the appropriate location and return a promise indicating when you're done.
 
 If you need some task management, that's outside the scope of this library. Just use `await` and `Promise.all`.
@@ -29,7 +27,7 @@ If you need some task management, that's outside the scope of this library. Just
 ## Requirements
 
 - [Node.js](https://nodejs.org/) 7.6+, as this code uses `async` / `await` extensively.
-- [Gaze](https://www.npmjs.com/package/gaze)
+- [Chokidar](https://www.npmjs.com/package/chokidar)
 - Insanity
 
 ## Documentation

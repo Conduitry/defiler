@@ -58,13 +58,13 @@ A sorted array of the relative paths of all of the physical files. This can be u
 
 ## Configuration
 
-### `add({ gaze, rootPath, read = true })`
+### `add({ chokidar, rootPath, read = true })`
 
-Register a Gaze instance.
+Register a Chokidar watch.
 
-- `gaze` - the Gaze instance
+- `chokidar` - the Chokidar watch
 -	`rootPath` - the path that all of our paths should be relative to
-- `read` - _(optional)_ whether to actually read in the contents of the files for this Gaze. If `false`, the files will still be run through all of the transforms, but they will have null `bytes` and `text`
+- `read` - _(optional)_ whether to actually read in the contents of the files for this Chokidar watch. If `false`, the files will still be run through all of the transforms, but they will have null `bytes` and `text`
 
 Returns the `Defiler` instance for chaining.
 
@@ -90,9 +90,9 @@ Returns the `Defiler` instance for chaining.
 
 ### `exec({ close = false })`
 
-Starts the Defiler running. No additional configuration (registering Gazes, transforms, or generated files) can happen after this.
+Start the Defiler running. No additional configuration (registering Chokidar watches, transforms, or generated files) can happen after this.
 
-- `close` - _(optional)_ whether to immediately close all of the attached Gazes after the initial wave of processing
+- `close` - _(optional)_ whether to immediately close all of the attached Chokidar watches after the initial wave of processing
 
 Returns the `Defiler` instance for chaining.
 
@@ -100,7 +100,7 @@ Returns the `Defiler` instance for chaining.
 
 ### `get(path, dependent)`
 
-Waits for a file or array of files to be ready.
+Wait for a file or array of files to be ready, and retrieve the `File` instance(s).
 
 - `path` - the path, or array of paths, to wait for to become available
 - `dependent` - _(optional)_ a path of a file to re-process if any of the file or files given in `path` change. Typically, this is the path to the file you are currently transforming or generating
@@ -131,7 +131,7 @@ Returns a `Promise` to indicate when all processing is complete.
 
 ### `close()`
 
-Close all of the attached Gazes.
+Close all of the attached Chokidar watches.
 
 ## Events
 
