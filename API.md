@@ -111,7 +111,7 @@ This can be asked for physical or generated files. If you ask for one or more ph
 
 If a path `dependent` is passed, `dependent` is registered as depending on the file or files in `path`. When the file or files in `path` change, the file at `dependent` will be automatically re-transformed (using `refile`, below). If you're calling `get` inside a transform or generator, `dependent` should typically be the path of the file you're transforming or generating.
 
-Typically, you would not call this directly, and would instead call the function passed as a second argument to the transform or generator callback, which then calls this method with the appropriate `dependent`.
+Typically, you would not call this directly, and would instead call the `get` function passed to the transform or generator callback, which then calls this method with the appropriate `dependent`.
 
 ### `refile(path)`
 
