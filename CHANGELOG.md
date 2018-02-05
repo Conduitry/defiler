@@ -1,3 +1,7 @@
+# v0.8.1
+
+- Make `defiler.ready` wait for any pending calls to `defiler.addFile` that have been called in the meantime
+
 # v0.8.0
 
 - Switch from using Gaze to Chokidar for the underlying file watching library
