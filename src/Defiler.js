@@ -3,6 +3,7 @@ import { readFile, stat } from 'fs'
 import { join, relative } from 'path'
 
 import File from './File.js'
+import Waiter from './Waiter.js'
 
 export default class Defiler extends EventEmitter {
 	constructor() {
@@ -11,6 +12,8 @@ export default class Defiler extends EventEmitter {
 		this._origFiles = new Map()
 		this._files = new Map()
 		this._ready = null
+
+		this._waiter = new Waiter()
 
 		this._chokidars = []
 		this._chokidarPromises = []
@@ -81,8 +84,6 @@ export default class Defiler extends EventEmitter {
 			await Promise.all(this._chokidarPromises)
 			this._chokidarPromises = null
 
-			let promises = []
-
 			for (let { chokidar, rootPath, read } of this._chokidars) {
 				let watched = chokidar.getWatched()
 				for (let dir in watched) {
@@ -97,7 +98,7 @@ export default class Defiler extends EventEmitter {
 							rootPath,
 							read
 						)
-						promises.push(promise)
+						this._waiter.add(promise)
 						let path = Defiler._relativePath(rootPath, absolutePath)
 						this._filePromises.set(path, promise)
 						this._origFiles.set(path, null)
@@ -107,7 +108,7 @@ export default class Defiler extends EventEmitter {
 
 			for (let path of this._customGenerators.keys()) {
 				let promise = this._handleGeneratedFile(path)
-				promises.push(promise)
+				this._waiter.add(promise)
 				this._filePromises.set(path, promise)
 			}
 
@@ -122,7 +123,7 @@ export default class Defiler extends EventEmitter {
 				}
 			}
 
-			await Promise.all(promises)
+			await this._waiter.done
 
 			let _processDependents = this._processDependents.bind(this)
 			this.on('file', _processDependents)
@@ -170,7 +171,7 @@ export default class Defiler extends EventEmitter {
 		if (!(file instanceof File)) {
 			file = Object.assign(new File(), file)
 		}
-		await this._transformFile(file)
+		await this._waiter.add(this._transformFile(file))
 		this._files.set(path, file)
 		this.emit('file', { defiler: this, path, file })
 	}
