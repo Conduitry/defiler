@@ -11,9 +11,9 @@
 		"build": "rollup -c"
 	},
 	"devDependencies": {
-		"eslint": "^4.16.0",
+		"eslint": "^4.17.0",
 		"prettier": "^1.10.2",
-		"rollup": "^0.55.1"
+		"rollup": "^0.55.3"
 	},
 	"engines": {
 		"node": ">=7.6.0"
