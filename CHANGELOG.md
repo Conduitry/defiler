@@ -1,3 +1,8 @@
+# v0.9.0
+
+- Switch from using Chokidar to an internal lightweight file watching system
+- Remove concept of closing a `Defiler` instance and instead allow each configured input directory to specify whether it should be watched for changes - see API docs
+
 # v0.8.1
 
 - Make `defiler.ready` wait for any pending calls to `defiler.addFile` that have been called in the meantime
