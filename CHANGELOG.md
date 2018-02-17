@@ -1,3 +1,7 @@
+# v0.9.1
+
+- Fix a very embarrassing bug
+
 # v0.9.0
 
 - Switch from using Chokidar to an internal lightweight file watching system
