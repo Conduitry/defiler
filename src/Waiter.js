@@ -21,7 +21,7 @@ export default class Waiter {
 				err => {
 					this._done = true
 					this._rej(err)
-				}
+				},
 			)
 		}
 		return promise

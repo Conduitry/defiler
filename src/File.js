@@ -9,9 +9,7 @@ export default class File {
 	get ext() {
 		if (this.path && this.path.match) {
 			let match = this.path.match(/\.[^./\\]+$/)
-			if (match) {
-				return match[0]
-			}
+			if (match) return match[0]
 		}
 		return ''
 	}
@@ -26,9 +24,7 @@ export default class File {
 	}
 
 	get bytes() {
-		if (this._bytes == null && this._text != null) {
-			this._bytes = Buffer.from(this._text)
-		}
+		if (this._bytes == null && this._text != null) this._bytes = Buffer.from(this._text)
 		return this._bytes
 	}
 
@@ -38,9 +34,7 @@ export default class File {
 	}
 
 	get text() {
-		if (this._text == null && this._bytes != null) {
-			this._text = this._bytes.toString()
-		}
+		if (this._text == null && this._bytes != null) this._text = this._bytes.toString()
 		return this._text
 	}
 

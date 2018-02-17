@@ -1,9 +1,9 @@
 import EventEmitter from 'events'
-import { readFile, stat } from 'fs'
-import { join, relative } from 'path'
+import { readFile } from './fs.js'
 
 import File from './File.js'
 import Waiter from './Waiter.js'
+import Watcher from './Watcher.js'
 
 export default class Defiler extends EventEmitter {
 	constructor() {
@@ -15,8 +15,7 @@ export default class Defiler extends EventEmitter {
 
 		this._waiter = new Waiter()
 
-		this._chokidars = []
-		this._chokidarPromises = []
+		this._watchers = []
 
 		this._transforms = []
 		this._filePromises = new Map()
@@ -50,12 +49,12 @@ export default class Defiler extends EventEmitter {
 	add(config) {
 		this._checkBeforeExec('add')
 
-		// add chokidar
+		// add dir
 
-		if (config.chokidar) {
-			let { chokidar, rootPath, read = true } = config
-			this._chokidars.push({ chokidar, rootPath, read })
-			this._chokidarPromises.push(new Promise(res => chokidar.on('ready', res)))
+		if (config.dir) {
+			let { dir, read = true, watch = true } = config
+			let watcher = new Watcher(dir, watch)
+			this._watchers.push({ watcher, dir, read, watch })
 		}
 
 		// add transform
@@ -77,50 +76,30 @@ export default class Defiler extends EventEmitter {
 
 	// exec
 
-	exec({ close = false } = {}) {
+	exec() {
 		this._checkBeforeExec('exec')
 		this._processing = true
 		this._ready = (async () => {
-			await Promise.all(this._chokidarPromises)
-			this._chokidarPromises = null
-
-			for (let { chokidar, rootPath, read } of this._chokidars) {
-				let watched = chokidar.getWatched()
-				for (let dir in watched) {
-					for (let name of watched[dir]) {
-						let absolutePath = join(dir, name)
-						if (watched[absolutePath]) {
-							continue
-						}
-
-						let promise = this._processPhysicalFile(
-							absolutePath,
-							rootPath,
-							read
-						)
+			await Promise.all(
+				this._watchers.map(async ({ watcher, dir, read, watch }) => {
+					if (watch) {
+						watcher.on('', ({ event, path, stat }) => {
+							this._enqueue({ event, dir, path, stat, read })
+						})
+					}
+					for (let { path, stat } of await watcher.init()) {
+						let promise = this._processPhysicalFile(dir, path, stat, read)
 						this._waiter.add(promise)
-						let path = Defiler._relativePath(rootPath, absolutePath)
 						this._filePromises.set(path, promise)
 						this._origFiles.set(path, null)
 					}
-				}
-			}
+				}),
+			)
 
 			for (let path of this._customGenerators.keys()) {
 				let promise = this._handleGeneratedFile(path)
 				this._waiter.add(promise)
 				this._filePromises.set(path, promise)
-			}
-
-			if (close) {
-				this.close()
-			} else {
-				for (let { chokidar, rootPath, read } of this._chokidars) {
-					chokidar.on('all', (event, absolutePath) => {
-						this._queue.push({ event, absolutePath, rootPath, read })
-						this._checkQueue()
-					})
-				}
 			}
 
 			await this._waiter.done
@@ -140,9 +119,7 @@ export default class Defiler extends EventEmitter {
 
 	async get(path, dependent) {
 		this._checkAfterExec('get')
-		if (Array.isArray(path)) {
-			return Promise.all(path.map(path => this.get(path, dependent)))
-		}
+		if (Array.isArray(path)) return Promise.all(path.map(path => this.get(path, dependent)))
 		if (dependent) {
 			if (this._dependents.has(dependent)) {
 				this._dependents.get(dependent).add(path)
@@ -150,9 +127,7 @@ export default class Defiler extends EventEmitter {
 				this._dependents.set(dependent, new Set([path]))
 			}
 		}
-		if (this._filePromises) {
-			await this._filePromises.get(path)
-		}
+		if (this._filePromises) await this._filePromises.get(path)
 		return this._files.get(path)
 	}
 
@@ -168,46 +143,31 @@ export default class Defiler extends EventEmitter {
 	async addFile(file) {
 		this._checkAfterExec('addFile')
 		let { path } = file
-		if (!(file instanceof File)) {
-			file = Object.assign(new File(), file)
-		}
+		if (!(file instanceof File)) file = Object.assign(new File(), file)
 		await this._waiter.add(this._transformFile(file))
 		this._files.set(path, file)
 		this.emit('file', { defiler: this, path, file })
 	}
 
-	close() {
-		this._checkAfterExec('close')
-		for (let { chokidar } of this._chokidars) {
-			chokidar.close()
-		}
-	}
-
 	// private methods
 
 	_checkBeforeExec(methodName) {
-		if (this._ready) {
-			throw new Error(`Cannot call ${methodName} after calling exec`)
-		}
+		if (this._ready) throw new Error(`Cannot call ${methodName} after calling exec`)
 	}
 
 	_checkAfterExec(methodName) {
-		if (!this._ready) {
-			throw new Error(`Cannot call ${methodName} before calling exec`)
-		}
+		if (!this._ready) throw new Error(`Cannot call ${methodName} before calling exec`)
 	}
 
-	async _checkQueue() {
-		if (this._processing) {
-			return
-		}
+	async _enqueue(event) {
+		this._queue.push(event)
+		if (this._processing) return
 		this._processing = true
 		while (this._queue.length) {
-			let { event, absolutePath, rootPath, read } = this._queue.shift()
-			if (event === 'add' || event === 'change') {
-				await this._processPhysicalFile(absolutePath, rootPath, read)
-			} else if (event === 'unlink') {
-				let path = Defiler._relativePath(rootPath, absolutePath)
+			let { event, dir, path, stat, read } = this._queue.shift()
+			if (event === '+') {
+				await this._processPhysicalFile(dir, path, stat, read)
+			} else if (event === '-') {
 				this._origFiles.delete(path)
 				this._files.delete(path)
 				this.emit('deleted', { defiler: this, path })
@@ -216,21 +176,10 @@ export default class Defiler extends EventEmitter {
 		this._processing = false
 	}
 
-	async _processPhysicalFile(absolutePath, rootPath, read) {
-		let fileStat = await new Promise((res, rej) =>
-			stat(absolutePath, (err, data) => (err ? rej(err) : res(data)))
-		)
-		if (!fileStat.isFile()) {
-			return
-		}
-		let path = Defiler._relativePath(rootPath, absolutePath)
+	async _processPhysicalFile(dir, path, fileStat, read) {
 		let origFile = new File(path)
 		origFile.stat = fileStat
-		if (read) {
-			origFile.bytes = await new Promise((res, rej) =>
-				readFile(absolutePath, (err, data) => (err ? rej(err) : res(data)))
-			)
-		}
+		if (read) origFile.bytes = await readFile(dir + '/' + path)
 		this._origFiles.set(path, origFile)
 		this.emit('origFile', { defiler: this, file: origFile })
 		await this._processFile(origFile)
@@ -284,15 +233,6 @@ export default class Defiler extends EventEmitter {
 				this._dependents.delete(dependent)
 			}
 		}
-		for (let dependent of dependents) {
-			this.refile(dependent)
-		}
-	}
-
-	static _relativePath(rootPath, absolutePath) {
-		return (rootPath ? relative(rootPath, absolutePath) : absolutePath).replace(
-			/\\/g,
-			'/'
-		)
+		for (let dependent of dependents) this.refile(dependent)
 	}
 }
