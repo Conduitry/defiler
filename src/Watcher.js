@@ -81,6 +81,6 @@ export default class Watcher extends EventEmitter {
 				}
 			}
 		}
-		this._processing = true
+		this._processing = false
 	}
 }
