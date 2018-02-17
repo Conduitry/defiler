@@ -26,8 +26,7 @@ If you need some task management, that's outside the scope of this library. Just
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) 7.6+, as this code uses `async` / `await` extensively.
-- [Chokidar](https://www.npmjs.com/package/chokidar)
+- [Node.js](https://nodejs.org/) 8+
 - Insanity
 
 ## Documentation

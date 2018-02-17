@@ -58,13 +58,13 @@ A sorted array of the relative paths of all of the physical files. This can be u
 
 ## Configuration
 
-### `add({ chokidar, rootPath, read = true })`
+### `add({ dir, read = true, watch = true })`
 
-Register a Chokidar watch.
+Register an input directory.
 
-- `chokidar` - the Chokidar watch
--	`rootPath` - the path that all of our paths should be relative to
-- `read` - _(optional)_ whether to actually read in the contents of the files for this Chokidar watch. If `false`, the files will still be run through all of the transforms, but they will have null `bytes` and `text`
+- `dir` - the directory to watch
+- `read` - _(optional)_ whether to actually read in the contents of the files in this directory. If `false`, the files will still be run through all of the transforms, but they will have null `bytes` and `text`
+- `watch` - _(optional)_ whether to actually watch this directory for changes. If `false`, the files will still be run through all of the transforms, but any changes to them will not be
 
 Returns the `Defiler` instance for chaining.
 
@@ -88,11 +88,9 @@ Returns the `Defiler` instance for chaining.
 
 ## Execution
 
-### `exec({ close = false })`
+### `exec()`
 
-Start the Defiler running. No additional configuration (registering Chokidar watches, transforms, or generated files) can happen after this.
-
-- `close` - _(optional)_ whether to immediately close all of the attached Chokidar watches after the initial wave of processing
+Start the Defiler running. No additional configuration (registering input directories, transforms, or generated files) can happen after this.
 
 Returns the `Defiler` instance for chaining.
 
@@ -128,10 +126,6 @@ Manually insert a non-physical `File`, running it through all the transforms.
 For convenience, you can also call this with a plain old JavaScript object, and a new `File` instance will be created for you with fields `Object.assign`ed from the object.
 
 Returns a `Promise` to indicate when all processing is complete.
-
-### `close()`
-
-Close all of the attached Chokidar watches.
 
 ## Events
 
