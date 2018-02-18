@@ -1,5 +1,6 @@
 import EventEmitter from 'events'
 import { readFile } from './fs.js'
+import { resolve } from 'path'
 
 import File from './File.js'
 import Waiter from './Waiter.js'
@@ -53,6 +54,7 @@ export default class Defiler extends EventEmitter {
 
 		if (config.dir) {
 			let { dir, read = true, watch = true, debounce = 50 } = config
+			dir = resolve(dir).replace(/\\/g, '/')
 			let watcher = new Watcher(dir, watch, debounce)
 			this._watchers.push({ watcher, dir, read, watch })
 		}
