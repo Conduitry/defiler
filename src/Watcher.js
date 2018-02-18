@@ -3,10 +3,11 @@ import { stat, readdir } from './fs.js'
 import { watch } from 'fs'
 
 export default class Watcher extends EventEmitter {
-	constructor(dir, watch) {
+	constructor(dir, watch, debounce) {
 		super()
 		this._dir = dir
 		this._watch = watch
+		this._debounce = debounce
 
 		this._dirs = new Set()
 		this._files = new Map()
@@ -37,7 +38,7 @@ export default class Watcher extends EventEmitter {
 						setTimeout(() => {
 							this._timeouts.delete(file)
 							this._enqueue(file)
-						}, 50),
+						}, this._debounce),
 					)
 				})
 			}
