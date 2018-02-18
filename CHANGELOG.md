@@ -1,3 +1,8 @@
+# v0.9.2
+
+- Allow the `debounce` time for an input directory to be configured
+- Normalize input directory names
+
 # v0.9.1
 
 - Fix a very embarrassing bug
