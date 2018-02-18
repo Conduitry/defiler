@@ -58,13 +58,14 @@ A sorted array of the relative paths of all of the physical files. This can be u
 
 ## Configuration
 
-### `add({ dir, read = true, watch = true })`
+### `add({ dir, read = true, watch = true, debounce = 50 })`
 
 Register an input directory.
 
 - `dir` - the directory to watch
 - `read` - _(optional)_ whether to actually read in the contents of the files in this directory. If `false`, the files will still be run through all of the transforms, but they will have null `bytes` and `text`
 - `watch` - _(optional)_ whether to actually watch this directory for changes. If `false`, the files will still be run through all of the transforms, but any changes to them will not be
+- `debounce` - _(optional)_ The length of the timeout in milliseconds to use to debounce incoming events from `fs.watch`. Multiple events are often emitted for a single change, and events can also be emitted before `fs.stat` reports the changes. Defiler will wait until `debounce` milliseconds have passed since the last `fs.watch` event for a file before handling it. Defaults to 50ms, which Works On My Machine.
 
 Returns the `Defiler` instance for chaining.
 
