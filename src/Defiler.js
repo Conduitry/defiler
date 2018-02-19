@@ -53,7 +53,7 @@ export default class Defiler extends EventEmitter {
 		// add dir
 
 		if (config.dir) {
-			let { dir, read = true, watch = true, debounce = 50 } = config
+			let { dir, read = true, watch = true, debounce = 10 } = config
 			dir = resolve(dir).replace(/\\/g, '/')
 			let watcher = new Watcher(dir, watch, debounce)
 			this._watchers.push({ watcher, dir, read, watch })
