@@ -18,6 +18,10 @@ A new `File` instance to serve as the representation of a physical file, a gener
 
 The file's path can be retrieved or updated by getting and setting `path`.
 
+### `paths`
+
+An array of all `path`s this file has had, in chronological order. Setting `path` automatically updates this.
+
 ### `ext`
 
 The file's extension (including the preceding `.`) can be retrieved or updated by getting and setting `path`. The `ext` and `path` properties are kept in sync.

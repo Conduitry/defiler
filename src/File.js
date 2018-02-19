@@ -1,9 +1,21 @@
 export default class File {
 	constructor(path) {
-		this.path = path
+		this._path = path
+		this.paths = path ? [path] : []
 		this.stat = null
 		this._bytes = null
 		this._text = null
+	}
+
+	get path() {
+		return this._path
+	}
+
+	set path(path) {
+		if (this._path !== path) {
+			this._path = path
+			this.paths.push(path)
+		}
 	}
 
 	get ext() {
