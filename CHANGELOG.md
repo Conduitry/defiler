@@ -1,3 +1,8 @@
+# v0.9.3
+
+- Add `file.paths`, an array of historical paths for the file
+- Change default debounce timeout to 10ms
+
 # v0.9.2
 
 - Allow the `debounce` time for an input directory to be configured
