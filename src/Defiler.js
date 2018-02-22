@@ -47,32 +47,27 @@ export default class Defiler extends EventEmitter {
 
 	// pre-exec (configuration) methods
 
-	add(config) {
-		this._checkBeforeExec('add')
-
-		// add dir
-
-		if (config.dir) {
-			let { dir, read = true, watch = true, debounce = 10 } = config
+	dir(...dirs) {
+		this._checkBeforeExec('dir')
+		for (let { dir, read = true, watch = true, debounce = 10 } of dirs.filter(Boolean)) {
 			dir = resolve(dir).replace(/\\/g, '/')
 			let watcher = new Watcher(dir, watch, debounce)
 			this._watchers.push({ watcher, dir, read, watch })
 		}
+		return this
+	}
 
-		// add transform
+	transform(...transforms) {
+		this._checkBeforeExec('transform')
+		this._transforms.push(...transforms.filter(Boolean))
+		return this
+	}
 
-		if (config.transform) {
-			let { transform, if: if_ } = config
-			this._transforms.push({ transform, if: if_ })
+	generator(generators) {
+		this._checkBeforeExec('generator')
+		for (let [path, generator] of Object.entries(generators)) {
+			if (path && generator) this._customGenerators.set(path, generator)
 		}
-
-		// add generated file
-
-		if (config.generator) {
-			let { path, generator } = config
-			this._customGenerators.set(path, generator)
-		}
-
 		return this
 	}
 
@@ -133,17 +128,8 @@ export default class Defiler extends EventEmitter {
 		return this._files.get(path)
 	}
 
-	async refile(path) {
-		this._checkAfterExec('refile')
-		if (this._customGenerators.has(path)) {
-			await this._handleGeneratedFile(path)
-		} else if (this._origFiles.has(path)) {
-			await this._processFile(this._origFiles.get(path))
-		}
-	}
-
-	async addFile(file) {
-		this._checkAfterExec('addFile')
+	async file(file) {
+		this._checkAfterExec('file')
 		let { path } = file
 		if (!(file instanceof File)) file = Object.assign(new File(), file)
 		await this._waiter.add(this._transformFile(file))
@@ -197,15 +183,13 @@ export default class Defiler extends EventEmitter {
 	async _transformFile(file) {
 		let { path } = file
 		try {
-			for (let { transform, if: if_ } of this._transforms) {
-				if (!if_ || (await if_({ defiler: this, path, file }))) {
-					await transform({
-						defiler: this,
-						path,
-						file,
-						get: dependency => this.get(dependency, path),
-					})
-				}
+			for (let transform of this._transforms) {
+				await transform({
+					defiler: this,
+					path,
+					file,
+					get: dependency => this.get(dependency, path),
+				})
 			}
 		} catch (error) {
 			this.emit('error', { defiler: this, path, file, error })
@@ -221,7 +205,7 @@ export default class Defiler extends EventEmitter {
 				file,
 				get: dependency => this.get(dependency, path),
 			})
-			await this.addFile(file)
+			await this.file(file)
 		} catch (error) {
 			this.emit('error', { defiler: this, path, file, error })
 		}
@@ -235,6 +219,12 @@ export default class Defiler extends EventEmitter {
 				this._dependents.delete(dependent)
 			}
 		}
-		for (let dependent of dependents) this.refile(dependent)
+		for (let dependent of dependents) {
+			if (this._customGenerators.has(dependent)) {
+				this._handleGeneratedFile(dependent)
+			} else if (this._origFiles.has(dependent)) {
+				this._processFile(this._origFiles.get(dependent))
+			}
+		}
 	}
 }

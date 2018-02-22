@@ -62,9 +62,9 @@ A sorted array of the relative paths of all of the physical files. This can be u
 
 ## Configuration
 
-### `add({ dir, read = true, watch = true, debounce = 10 })`
+### `dir({ dir, read = true, watch = true, debounce = 10 }, ...)`
 
-Register an input directory.
+Register one or more input directories.
 
 - `dir` - the directory to watch
 - `read` - _(optional)_ whether to actually read in the contents of the files in this directory. If `false`, the files will still be run through all of the transforms, but they will have null `bytes` and `text`
@@ -73,18 +73,19 @@ Register an input directory.
 
 Returns the `Defiler` instance for chaining.
 
-### `add({ transform, if })`
+### `transform(transform, ...)`
 
-Register a new transform to be applied to all files.
+Register one or more new transforms to be applied to all files.
 
-- `transform({ defiler, path, file, get })` - a transformer function, which is passed an object containing the `Defiler` instance, the original `path` of the file, the `File` instance to mutate, and a function `get(path)` which calls the `get(path, dependent)` method (see below) with the appropriate `dependent` (that is, the current file's path), as a convenience. The function can return a `Promise` to indicate when it's done
-- `if({ defiler, path, file })` - _(optional)_ a function that, if present, will be called (before calling the main `transform`) with an object containing the `Defiler` instance, the original `path` of the file, and the `File` instance. If the function returns `false` or a `Promise` resolving to `false`, the transform is skipped
+- `transform({ defiler, path, file, get })` - a transform function, which is passed an object containing the `Defiler` instance, the original `path` of the file, the `File` instance to mutate, and a function `get(path)` which calls the `get(path, dependent)` method (see below) with the appropriate `dependent` (that is, the current file's original path), as a convenience. The function can return a `Promise` to indicate when it's done
+
+Each file will have all transforms called on it, in the order that they were registered.
 
 Returns the `Defiler` instance for chaining.
 
-### `add({ path, generator })`
+### `generator({ path: generator, ... })`
 
-Register a new generated file, not directly sourced from a physical file.
+Register one or more new generated files, not directly sourced from a physical file.
 
 - `path` - the relative path of the file to register the generator for
 - `generator({ defiler, file, get })` - a generator function, which is passed an object containing the `Defiler` instance, a new `File` instance to mutate containing only a path, and a function `get(path)` which calls the `get(path, dependent)` method (see below) with the appropriate `dependent` (that is, the current file's path), as a convenience. The function can return a `Promise` to indicate when it's done
@@ -112,19 +113,11 @@ Returns a `Promise` resolving to the `File` instance or an array of `File` insta
 
 This can be asked for physical or generated files. If you ask for one or more physical files during the initial wave of processing before everything has been read in and processed, it will wait for the file or files to be ready (and transformed). Requesting something that is neither a known physical file nor a registered generated file will not throw an error, but will instead simply return `undefined`.
 
-If a path `dependent` is passed, `dependent` is registered as depending on the file or files in `path`. When the file or files in `path` change, the file at `dependent` will be automatically re-transformed (using `refile`, below). If you're calling `get` inside a transform or generator, `dependent` should typically be the path of the file you're transforming or generating.
+If a path `dependent` is passed, `dependent` is registered as depending on the file or files in `path`. When the file or files in `path` change, the file at `dependent` will be automatically re-transformed. Re-transforming a physical file will use the version of it that was last read into memory. Re-transforming a generated file will call its generator again. If you're calling `get` inside a transform or generator, `dependent` should typically be the path of the file you're transforming or generating.
 
 Typically, you would not call this directly, and would instead call the `get` function passed to the transform or generator callback, which then calls this method with the appropriate `dependent`.
 
-### `refile(path)`
-
-Manually re-transform a `File`. This can be from a physical file or a generated one. Returns a `Promise` to indicate when all processing is complete. Re-transforming a physical file will use the version of it that was last read into memory. Re-transforming a generated file will call its generator again.
-
-Returns a `Promise` to indicate when all processing is complete.
-
-Typically, you would not need to call this directly, as it would be automatically handled by the dependencies registered by `get`.
-
-### `addFile(file)`
+### `file(file)`
 
 Manually insert a non-physical `File`, running it through all the transforms.
 
