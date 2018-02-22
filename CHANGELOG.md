@@ -1,3 +1,7 @@
+# v0.10.0
+
+- Beautify `Defiler` API - see docs
+
 # v0.9.3
 
 - Add `file.paths`, an array of historical paths for the file
