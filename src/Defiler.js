@@ -126,26 +126,6 @@ export default class Defiler extends EventEmitter {
 
 	// post-exec methods
 
-	// wait for a file to be available, optionally marking another file as depending on it
-	async get(path, dependent) {
-		this._checkAfterExec('get')
-		if (Array.isArray(path)) return Promise.all(path.map(path => this.get(path, dependent)))
-		if (dependent) this.depend(dependent, path)
-		if (!this._status && !this._files.has(path) && dependent) {
-			this._waiting.set(dependent, (this._waiting.get(dependent) || 0) + 1)
-			if (this._available.has(path)) {
-				await this._available.get(path).promise
-			} else {
-				let resolve
-				let promise = new Promise(res => (resolve = res))
-				this._available.set(path, { promise, resolve })
-				await promise
-			}
-			this._waiting.set(dependent, this._waiting.get(dependent) - 1)
-		}
-		return this._files.get(path)
-	}
-
 	// add a new non-physical file
 	async file(file) {
 		this._checkAfterExec('file')
@@ -236,7 +216,7 @@ export default class Defiler extends EventEmitter {
 					defiler: this,
 					path,
 					file,
-					get: dependency => this.get(dependency, path),
+					get: dependency => this._get(path, dependency),
 				})
 			}
 		} catch (error) {
@@ -258,12 +238,31 @@ export default class Defiler extends EventEmitter {
 			await this._generators.get(path)({
 				defiler: this,
 				file,
-				get: dependency => this.get(dependency, path),
+				get: dependency => this._get(path, dependency),
 			})
 			await this.file(file)
 		} catch (error) {
 			this.emit('error', { defiler: this, path, file, error })
 		}
+	}
+
+	// wait for a file to be available and mark another file as depending on it
+	async _get(dependent, path) {
+		if (Array.isArray(path)) return Promise.all(path.map(path => this._get(dependent, path)))
+		this.depend(dependent, path)
+		if (!this._status && !this._files.has(path)) {
+			this._waiting.set(dependent, (this._waiting.get(dependent) || 0) + 1)
+			if (this._available.has(path)) {
+				await this._available.get(path).promise
+			} else {
+				let resolve
+				let promise = new Promise(res => (resolve = res))
+				this._available.set(path, { promise, resolve })
+				await promise
+			}
+			this._waiting.set(dependent, this._waiting.get(dependent) - 1)
+		}
+		return this._files.get(path)
 	}
 
 	// re-process all files that depend on a particular path
