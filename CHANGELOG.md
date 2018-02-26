@@ -1,3 +1,8 @@
+# v0.11.0
+
+- Allow dependence on as-yet unknown files
+- API adjustments - see docs
+
 # v0.10.0
 
 - Beautify `Defiler` API - see docs
