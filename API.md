@@ -1,6 +1,6 @@
 The API consists of two classes, `File` and `Defiler`.
 
-A `File` represents a physical file on the disk, or a generated virtual file with no particular corresponding file in the filesystem, or a partially or fully transformed physical or virtual/generated file.
+A `File` represents a physical file on the disk, or a generated virtual file with no particular corresponding file in the file system, or a partially or fully transformed physical or virtual/generated file.
 
 A `Defiler` represents a set of watched files on the disk, plus a set of generated files, plus a set of transforms to execute on them.
 
@@ -32,7 +32,9 @@ The file's contents can be updated by getting or setting `bytes`, which is a `Bu
 
 ### `text`
 
-The file's contents can also be updated by getting of setting `text`, which is a string. Mutating the `bytes` `Buffer` will not be reflected in `text`, but reassigning the entire `bytes` or `text` properties will keep the other in sync.
+The file's contents can also be updated by getting or setting `text`, which is a string.
+
+Mutating the `bytes` `Buffer` will not be reflected in `text`, but reassigning the entire `bytes` or `text` properties will keep the other in sync.
 
 # `Defiler`
 
@@ -44,9 +46,9 @@ A new `Defiler` instance to represent a collection of watched physical files and
 
 ## Properties
 
-### `ready`
+### `status`
 
-A `Promise` that's resolved once we've completed the initial wave of processing. This remains unchanged as later watches or changes are triggered.
+The current status of the `Defiler`. This is `null` before `exec` has been called; `false` after `exec` has been called but before the initial wave of processing has completed; and `true` once the initial wave of processing is complete. It then remains unchanged as watched files are updated.
 
 ### `origFiles`
 
@@ -69,7 +71,7 @@ Register one or more input directories.
 - `dir` - the directory to watch
 - `read` - _(optional)_ whether to actually read in the contents of the files in this directory. If `false`, the files will still be run through all of the transforms, but they will have null `bytes` and `text`
 - `watch` - _(optional)_ whether to actually watch this directory for changes. If `false`, the files will still be run through all of the transforms, but any changes to them will not be
-- `debounce` - _(optional)_ The length of the timeout in milliseconds to use to debounce incoming events from `fs.watch`. Multiple events are often emitted for a single change, and events can also be emitted before `fs.stat` reports the changes. Defiler will wait until `debounce` milliseconds have passed since the last `fs.watch` event for a file before handling it. Defaults to 10ms, which Works On My Machine.
+- `debounce` - _(optional)_ The length of the timeout in milliseconds to use to debounce incoming events from `fs.watch`. Multiple events are often emitted for a single change, and events can also be emitted before `fs.stat` reports the changes. Defiler will wait until `debounce` milliseconds have passed since the last `fs.watch` event for a file before handling it. Defaults to 10ms, which Works On My Machine
 
 Returns the `Defiler` instance for chaining.
 
@@ -77,7 +79,7 @@ Returns the `Defiler` instance for chaining.
 
 Register one or more new transforms to be applied to all files.
 
-- `transform({ defiler, path, file, get })` - a transform function, which is passed an object containing the `Defiler` instance, the original `path` of the file, the `File` instance to mutate, and a function `get(path)` which calls the `get(path, dependent)` method (see below) with the appropriate `dependent` (that is, the current file's original path), as a convenience. The function can return a `Promise` to indicate when it's done
+- `transform({ defiler, path, file, get })` - a transform function, which is passed an object containing the `Defiler` instance, the original `path` of the file, the `File` instance to mutate, and a function `get(path)` (see "The `get(path)` function" below). The transform function can return a `Promise` to indicate when it's done
 
 Each file will have all transforms called on it, in the order that they were registered.
 
@@ -88,7 +90,7 @@ Returns the `Defiler` instance for chaining.
 Register one or more new generated files, not directly sourced from a physical file.
 
 - `path` - the relative path of the file to register the generator for
-- `generator({ defiler, file, get })` - a generator function, which is passed an object containing the `Defiler` instance, a new `File` instance to mutate containing only a path, and a function `get(path)` which calls the `get(path, dependent)` method (see below) with the appropriate `dependent` (that is, the current file's path), as a convenience. The function can return a `Promise` to indicate when it's done
+- `generator({ defiler, file, get })` - a generator function, which is passed an object containing the `Defiler` instance, a new `File` instance to mutate containing only a path, and a function `get(path)` (see "The `get(path)` function" below). The generator function can return a `Promise` to indicate when it's done
 
 Returns the `Defiler` instance for chaining.
 
@@ -98,24 +100,9 @@ Returns the `Defiler` instance for chaining.
 
 Start the Defiler running. No additional configuration (registering input directories, transforms, or generated files) can happen after this.
 
-Returns the `Defiler` instance for chaining.
+Returns a promise that resolves when the initial wave of processing is complete.
 
 ## Operation
-
-### `get(path, dependent)`
-
-Wait for a file or array of files to be ready, and retrieve the `File` instance(s).
-
-- `path` - the path, or array of paths, to wait for to become available
-- `dependent` - _(optional)_ a path of a file to re-process if any of the file or files given in `path` change. Typically, this is the path to the file you are currently transforming or generating
-
-Returns a `Promise` resolving to the `File` instance or an array of `File` instances.
-
-This can be asked for physical or generated files. If you ask for one or more physical files during the initial wave of processing before everything has been read in and processed, it will wait for the file or files to be ready (and transformed). Requesting something that is neither a known physical file nor a registered generated file will not throw an error, but will instead simply return `undefined`.
-
-If a path `dependent` is passed, `dependent` is registered as depending on the file or files in `path`. When the file or files in `path` change, the file at `dependent` will be automatically re-transformed. Re-transforming a physical file will use the version of it that was last read into memory. Re-transforming a generated file will call its generator again. If you're calling `get` inside a transform or generator, `dependent` should typically be the path of the file you're transforming or generating.
-
-Typically, you would not call this directly, and would instead call the `get` function passed to the transform or generator callback, which then calls this method with the appropriate `dependent`.
 
 ### `file(file)`
 
@@ -124,6 +111,22 @@ Manually insert a non-physical `File`, running it through all the transforms.
 For convenience, you can also call this with a plain old JavaScript object, and a new `File` instance will be created for you with fields `Object.assign`ed from the object.
 
 Returns a `Promise` to indicate when all processing is complete.
+
+### `depend(dependent, path)`
+
+Register that `dependent` depends on `path`. When the file at `path` changes, the file at `dependent` will be automatically re-transformed Re-transforming a physical file will use the version of it that was last read into memory. Re-transforming a generated file will call its generator again.
+
+## The `get(path)` function
+
+Transforms and generators are both passed a `get` function. This waits for a file or array of files to be ready and retrieves the `File` instance(s).
+
+- `path` - the path, or array of paths, to wait for to become available
+
+Returns a `Promise` resolving to the `File` instance or an array of `File` instances.
+
+This can be asked for physical, generated, or manually added files. If you ask for a file during the initial wave of processing before it is available, Defiler will wait for the file to be ready and transformed. If it ever happens that every in-progress file is waiting for a file to become available, the deadlock will be broken by Defiler resolving all of the pending `Promise`s to `undefined`. This may happen multiple times during the initial wave of processing.
+
+This will also register the file being transformed/generated as depending on the file or files in `path`, using the `depend` method, above. Once the initial wave of processing is complete, any changes to dependencies will cause their dependents to be re-transformed/re-generated.
 
 ## Events
 
