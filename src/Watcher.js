@@ -24,7 +24,7 @@ export default class Watcher extends EventEmitter {
 	}
 
 	// recurse directroy, get stats, set up FSWatcher instances
-	// return map of file paths -> file stats
+	// returns array of { file, stat }
 	async init() {
 		await this._recurse(this._dir)
 		return [...this._files.entries()].map(([path, stat]) => ({ path, stat }))

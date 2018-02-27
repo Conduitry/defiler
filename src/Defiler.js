@@ -14,29 +14,25 @@ export default class Defiler extends EventEmitter {
 		this._files = new Map()
 		// null = exec not called; false = exec pending; true = exec finished
 		this._status = null
-		// all registered watchers (one per directory)
+		// all registered Watcher instances (one per directory)
 		this._watchers = []
 		// all registered transforms
 		this._transforms = []
 		// paths -> registered generators
 		this._generators = new Map()
-		// how many promises we're currently waiting to resolve as part of the first exec wave
-		this._count = 0
-		// resolve main exec promise
-		this._res = null
-		// reject main exec promise
-		this._rej = null
-		// original paths of all files currently undergoing some transform
-		this._transforming = new Set()
+		// { count, resolve, reject } object for main promise for the first exec wave
+		this._done = { count: 0, resolve: null, reject: null }
+		// original paths of all files currently undergoing some transform/generator
+		this._pending = new Set()
 		// original paths -> number of other files they're currently waiting on to exist
 		this._waiting = new Map()
 		// original paths -> { promise, resolve } objects for when awaited files become available
 		this._available = new Map()
 		// original paths of dependents -> set of original paths of dependencies, specifying changes to which files should trigger re-processing which other files
 		this._dependents = new Map()
-		// queue of pending watcher events to handle
+		// queue of pending Watcher events to handle
 		this._queue = []
-		// where some watcher event is currently already in the process of being handled
+		// whether some Watcher event is currently already in the process of being handled
 		this._processing = false
 	}
 
@@ -60,7 +56,7 @@ export default class Defiler extends EventEmitter {
 
 	// pre-exec (configuration) methods
 
-	// register one or more directories/watchers
+	// register one or more directories/Watchers
 	dir(...dirs) {
 		this._checkBeforeExec('dir')
 		for (let { dir, read = true, watch = true, debounce = 10 } of dirs.filter(Boolean)) {
@@ -94,10 +90,10 @@ export default class Defiler extends EventEmitter {
 		this._status = false
 		this._processing = true
 		let promise = new Promise((res, rej) => {
-			this._res = res
-			this._rej = rej
+			this._done.resolve = res
+			this._done.reject = rej
 		})
-		// init all watchers; note that all files have pending transforms
+		// init all Watcher instances; note that all files have pending transforms
 		let files = []
 		await Promise.all(
 			this._watchers.map(async ({ watcher, dir, read, watch }) => {
@@ -107,11 +103,11 @@ export default class Defiler extends EventEmitter {
 				for (let { path, stat } of await watcher.init()) {
 					files.push({ dir, path, stat, read })
 					this._origFiles.set(path, null)
-					this._transforming.add(path)
+					this._pending.add(path)
 				}
 			}),
 		)
-		for (let path of this._generators.keys()) this._transforming.add(path)
+		for (let path of this._generators.keys()) this._pending.add(path)
 		// process each physical file
 		for (let { dir, path, stat, read } of files) {
 			this._wait(this._processPhysicalFile(dir, path, stat, read))
@@ -161,13 +157,13 @@ export default class Defiler extends EventEmitter {
 	// add another promise that must resolve before the initial exec wave can finish
 	_wait(promise) {
 		if (!this._status) {
-			this._count++
-			promise.then(() => --this._count || this._res(), this._rej)
+			this._done.count++
+			promise.then(() => --this._done.count || this._done.resolve(), this._done.reject)
 		}
 		return promise
 	}
 
-	// add a watcher event from the queue, and handle queued events
+	// add a Watcher event to the queue, and handle queued events
 	async _enqueue(event) {
 		this._queue.push(event)
 		if (this._processing) return
@@ -209,7 +205,7 @@ export default class Defiler extends EventEmitter {
 	// perform all transforms on a file
 	async _transformFile(file) {
 		let { path } = file
-		this._transforming.add(path)
+		this._pending.add(path)
 		try {
 			for (let transform of this._transforms) {
 				await transform({
@@ -222,11 +218,11 @@ export default class Defiler extends EventEmitter {
 		} catch (error) {
 			this.emit('error', { defiler: this, path, file, error })
 		}
-		this._transforming.delete(path)
-		if (!this._status && [...this._transforming].every(path => this._waiting.get(path))) {
-			// all pending transforming files are currently waiting for one or more other files to exist
+		this._pending.delete(path)
+		if (!this._status && [...this._pending].every(path => this._waiting.get(path))) {
+			// all pending files are currently waiting for one or more other files to exist
 			// break deadlock: assume all files that have not appeared yet will never do so
-			for (let path of this._available.keys()) if (!this._transforming.has(path)) this._found(path)
+			for (let path of this._available.keys()) if (!this._pending.has(path)) this._found(path)
 		}
 	}
 

@@ -1,9 +1,14 @@
 export default class File {
 	constructor(path) {
+		// path of file
 		this._path = path
+		// all historical paths of file
 		this.paths = path ? [path] : []
+		// stat of file
 		this.stat = null
+		// Buffer of file contents
 		this._bytes = null
+		// string of file contents
 		this._text = null
 	}
 
