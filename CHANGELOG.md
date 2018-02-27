@@ -1,6 +1,6 @@
 # v0.11.1
 
-- Close FSWatcher instances when their directories are deleted
+- Close `FSWatcher` instances when their directories are deleted
 
 # v0.11.0
 
@@ -48,11 +48,11 @@
 
 # v0.6.2
 
-- Do not include directories in `defiler.origFiles`/`defiler.files`/`defiler.origPaths`.
+- Do not include directories in `defiler.origFiles`/`defiler.files`/`defiler.origPaths`
 
 # v0.6.1
 
-- Add second argument to transform and generator callbacks which is a convenience function calling `defiler.get` with the appropriate `dependent`.
+- Add second argument to transform and generator callbacks which is a convenience function calling `defiler.get` with the appropriate `dependent`
 
 # v0.6.0
 
