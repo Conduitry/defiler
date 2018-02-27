@@ -1,3 +1,7 @@
+# v0.11.1
+
+- Close FSWatcher instances when their directories are deleted
+
 # v0.11.0
 
 - Allow dependence on as-yet unknown files
