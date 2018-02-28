@@ -59,10 +59,11 @@ export default class Defiler extends EventEmitter {
 	// register one or more directories/Watchers
 	dir(...dirs) {
 		this._checkBeforeExec('dir')
-		for (let { dir, read = true, watch = true, debounce = 10 } of dirs.filter(Boolean)) {
+		for (let config of dirs.filter(Boolean)) {
+			let { dir, read = true, enc = 'utf8', watch = true, debounce = 10 } = config
 			dir = resolve(dir).replace(/\\/g, '/')
 			let watcher = new Watcher(dir, watch, debounce)
-			this._watchers.push({ watcher, dir, read, watch })
+			this._watchers.push({ watcher, dir, read, enc, watch })
 		}
 		return this
 	}
@@ -96,12 +97,14 @@ export default class Defiler extends EventEmitter {
 		// init all Watcher instances; note that all files have pending transforms
 		let files = []
 		await Promise.all(
-			this._watchers.map(async ({ watcher, dir, read, watch }) => {
+			this._watchers.map(async ({ watcher, dir, read, enc, watch }) => {
 				if (watch) {
-					watcher.on('', ({ event, path, stat }) => this._enqueue({ event, dir, path, stat, read }))
+					watcher.on('', ({ event, path, stat }) => {
+						this._enqueue({ event, dir, path, stat, read, enc })
+					})
 				}
 				for (let { path, stat } of await watcher.init()) {
-					files.push({ dir, path, stat, read })
+					files.push({ dir, path, stat, read, enc })
 					this._origFiles.set(path, null)
 					this._pending.add(path)
 				}
@@ -109,8 +112,8 @@ export default class Defiler extends EventEmitter {
 		)
 		for (let path of this._generators.keys()) this._pending.add(path)
 		// process each physical file
-		for (let { dir, path, stat, read } of files) {
-			this._wait(this._processPhysicalFile(dir, path, stat, read))
+		for (let { dir, path, stat, read, enc } of files) {
+			this._wait(this._processPhysicalFile(dir, path, stat, read, enc))
 		}
 		// process each generated file
 		for (let path of this._generators.keys()) this._wait(this._handleGeneratedFile(path))
@@ -169,9 +172,9 @@ export default class Defiler extends EventEmitter {
 		if (this._processing) return
 		this._processing = true
 		while (this._queue.length) {
-			let { event, dir, path, stat, read } = this._queue.shift()
+			let { event, dir, path, stat, read, enc } = this._queue.shift()
 			if (event === '+') {
-				await this._processPhysicalFile(dir, path, stat, read)
+				await this._processPhysicalFile(dir, path, stat, read, enc)
 			} else if (event === '-') {
 				this._origFiles.delete(path)
 				this._files.delete(path)
@@ -183,9 +186,8 @@ export default class Defiler extends EventEmitter {
 	}
 
 	// create a file object for a physical file and process it
-	async _processPhysicalFile(dir, path, stat, read) {
-		let origFile = new File(path)
-		origFile.stat = stat
+	async _processPhysicalFile(dir, path, stat, read, enc) {
+		let origFile = Object.assign(new File(), { path, stat, enc })
 		if (read) origFile.bytes = await readFile(dir + '/' + path)
 		this._origFiles.set(path, origFile)
 		this.emit('origFile', { defiler: this, file: origFile })
