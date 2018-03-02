@@ -10,21 +10,29 @@ A `Defiler` represents a set of watched files on the disk, plus a set of generat
 
 ### `new File(path)`
 
-A new `File` instance to serve as the representation of a physical file, a generated file, or a transformed file. `path` is the relative path to the file, from some understood root.
+A new `File` instance to serve as the representation of a physical file, a generated file, or a transformed file. `path` is the relative path to the file, from some understood root. The past is always separated by forward slashes, regardless of platform.
 
 ## Properties
 
 ### `path`
 
-The file's path can be retrieved or updated by getting and setting `path`.
+The file's path can be retrieved or updated by getting and setting `path`. Updating `dir`, `filename`, or `ext` (below) also update this.
 
 ### `paths`
 
-An array of all `path`s this file has had, in chronological order. Setting `path` automatically updates this.
+An array of all `path`s this file has had, in chronological order. Automatically updated by setting `path`/`dir`/`filename`/`ext`.
+
+### `dir`
+
+The name of the directory (not including the trailing slash) containing the file.
+
+### `filename`
+
+The filename (including the extension) of the file.
 
 ### `ext`
 
-The file's extension (including the preceding `.`) can be retrieved or updated by getting and setting `path`. The `ext` and `path` properties are kept in sync.
+The extension (including the preceding `.`) of the file.
 
 ### `bytes`
 
@@ -35,6 +43,10 @@ The file's contents can be updated by getting or setting `bytes`, which is a `Bu
 The file's contents can also be updated by getting or setting `text`, which is a string.
 
 Mutating the `bytes` `Buffer` will not be reflected in `text`, but reassigning the entire `bytes` or `text` properties will keep the other in sync.
+
+### `enc`
+
+The assumed encoding for the file. Defaults to `'utf8'`, and must be one of Node.js's supported encodings. Changing this in the middle of processing a file can cause confusing behavior, and is not recommended.
 
 # `Defiler`
 
@@ -64,12 +76,13 @@ A sorted array of the relative paths of all of the physical files. This can be u
 
 ## Configuration
 
-### `dir({ dir, read = true, watch = true, debounce = 10 }, ...)`
+### `dir({ dir, read = true, enc = 'utf8', watch = true, debounce = 10 }, ...)`
 
 Register one or more input directories.
 
 - `dir` - the directory to watch
 - `read` - _(optional)_ whether to actually read in the contents of the files in this directory. If `false`, the files will still be run through all of the transforms, but they will have null `bytes` and `text`
+- `enc` - _(optional)_ encoding to use for files read in from this directory. Defaults to `'utf8'`, but this can also be changed for individual files (see `enc`, above)
 - `watch` - _(optional)_ whether to actually watch this directory for changes. If `false`, the files will still be run through all of the transforms, but any changes to them will not be
 - `debounce` - _(optional)_ The length of the timeout in milliseconds to use to debounce incoming events from `fs.watch`. Multiple events are often emitted for a single change, and events can also be emitted before `fs.stat` reports the changes. Defiler will wait until `debounce` milliseconds have passed since the last `fs.watch` event for a file before handling it. Defaults to 10ms, which Works On My Machine
 
