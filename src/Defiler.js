@@ -5,30 +5,33 @@ import { resolve } from 'path'
 import File from './File.js'
 import Watcher from './Watcher.js'
 
-let _origFiles = Symbol()
-let _files = Symbol()
-let _status = Symbol()
-let _watchers = Symbol()
-let _transforms = Symbol()
-let _generators = Symbol()
-let _done = Symbol()
-let _pending = Symbol()
-let _waiting = Symbol()
-let _available = Symbol()
-let _dependents = Symbol()
-let _queue = Symbol()
-let _processing = Symbol()
-let _checkBeforeExec = Symbol()
-let _checkAfterExec = Symbol()
-let _wait = Symbol()
-let _enqueue = Symbol()
-let _processPhysicalFile = Symbol()
-let _processFile = Symbol()
-let _transformFile = Symbol()
-let _handleGeneratedFile = Symbol()
-let _get = Symbol()
-let _processDependents = Symbol()
-let _found = Symbol()
+import symbols from './symbols.js'
+let {
+	_origFiles,
+	_files,
+	_status,
+	_watchers,
+	_transforms,
+	_generators,
+	_done,
+	_pending,
+	_waiting,
+	_available,
+	_dependents,
+	_queue,
+	_processing,
+	_checkBeforeExec,
+	_checkAfterExec,
+	_wait,
+	_enqueue,
+	_processPhysicalFile,
+	_processFile,
+	_transformFile,
+	_handleGeneratedFile,
+	_get,
+	_processDependents,
+	_found,
+} = symbols
 
 export default class Defiler extends EventEmitter {
 	constructor() {

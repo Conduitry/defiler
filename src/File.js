@@ -1,10 +1,5 @@
-let _path = Symbol()
-let _dir = Symbol()
-let _filename = Symbol()
-let _ext = Symbol()
-let _enc = Symbol()
-let _bytes = Symbol()
-let _text = Symbol()
+import symbols from './symbols.js'
+let { _path, _dir, _filename, _ext, _enc, _bytes, _text } = symbols
 
 export default class File {
 	constructor(path = '') {

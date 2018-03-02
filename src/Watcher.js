@@ -2,17 +2,20 @@ import EventEmitter from 'events'
 import { stat, readdir } from './fs.js'
 import { watch } from 'fs'
 
-let _dir = Symbol()
-let _watch = Symbol()
-let _debounce = Symbol()
-let _dirs = Symbol()
-let _files = Symbol()
-let _timeouts = Symbol()
-let _queue = Symbol()
-let _processing = Symbol()
-let _recurse = Symbol()
-let _handle = Symbol()
-let _enqueue = Symbol()
+import symbols from './symbols.js'
+let {
+	_dir,
+	_watch,
+	_debounce,
+	_dirs,
+	_files,
+	_timeouts,
+	_queue,
+	_processing,
+	_recurse,
+	_handle,
+	_enqueue,
+} = symbols
 
 export default class Watcher extends EventEmitter {
 	constructor(dir, watch, debounce) {
