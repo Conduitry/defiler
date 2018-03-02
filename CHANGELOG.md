@@ -1,3 +1,8 @@
+# v0.11.2
+
+- Add `file.dir` and `file.filename`, which also are kept in sync with `file.path`
+- Add support for other encodings, via `file.enc` and the `enc` option when specifying an input directory
+
 # v0.11.1
 
 - Close `FSWatcher` instances when their directories are deleted
