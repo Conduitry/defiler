@@ -1,3 +1,9 @@
+# v0.12.0
+
+- Simplify the API yet again - see docs
+- Add new [guide](GUIDE.md#readme) to the docs
+- Add more typechecking
+
 # v0.11.2
 
 - Add `file.dir` and `file.filename`, which also are kept in sync with `file.path`
