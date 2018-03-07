@@ -7,11 +7,12 @@ import Watcher from './Watcher.js'
 
 import symbols from './symbols.js'
 let {
+	_paths,
 	_origFiles,
 	_files,
 	_status,
-	_watchers,
-	_transforms,
+	_dir,
+	_transform,
 	_generators,
 	_done,
 	_pending,
@@ -20,37 +21,61 @@ let {
 	_dependents,
 	_queue,
 	_processing,
-	_checkBeforeExec,
-	_checkAfterExec,
 	_wait,
 	_enqueue,
 	_processPhysicalFile,
 	_processFile,
 	_transformFile,
-	_handleGeneratedFile,
+	_processGenerator,
 	_get,
 	_processDependents,
 	_found,
 } = symbols
 
 export default class Defiler extends EventEmitter {
-	constructor() {
+	constructor({
+		dir,
+		read = true,
+		enc = 'utf8',
+		watch = true,
+		debounce = 10,
+		transform,
+		generators = [],
+	}) {
+		if (typeof dir !== 'string') throw new TypeError('defiler: dir must be a string')
+		if (typeof read !== 'boolean') throw new TypeError('defiler: read must be a boolean')
+		if (!Buffer.isEncoding(enc)) throw new TypeError('defiler: enc must be a supported encoding')
+		if (typeof watch !== 'boolean') throw new TypeError('defiler: watch must be a boolean')
+		if (typeof debounce !== 'number') throw new TypeError('defiler: debounce must be a number')
+		if (typeof transform !== 'function') {
+			throw new TypeError('defiler: transform must be a function')
+		}
+		if (
+			!generators[Symbol.iterator] ||
+			[...generators].some(generator => typeof generator !== 'function')
+		) {
+			throw new TypeError('defiler: generators must be a collection of functions')
+		}
 		super()
+		// set of original paths for all physical files
+		this[_paths] = new Set()
 		// original paths -> original files for all physical files
 		this[_origFiles] = new Map()
-		// original paths -> transformed files for all physical/generated/etc. files
+		// original paths -> transformed files for all physical and virtual files
 		this[_files] = new Map()
 		// null = exec not called; false = exec pending; true = exec finished
 		this[_status] = null
-		// all registered Watcher instances (one per directory)
-		this[_watchers] = []
-		// all registered transforms
-		this[_transforms] = []
-		// paths -> registered generators
+		// information about the directory to watch
+		dir = resolve(dir)
+		this[_dir] = { watcher: new Watcher(dir, watch, debounce), dir, read, enc, watch }
+		// the transform to run on all files
+		this[_transform] = transform
+		// unique symbols -> registered generators
 		this[_generators] = new Map()
+		for (let generator of generators) this[_generators].set(Symbol(), generator)
 		// { count, resolve, reject } object for main promise for the first exec wave
 		this[_done] = { count: 0, resolve: null, reject: null }
-		// original paths of all files currently undergoing some transform/generator
+		// original paths of all files currently undergoing transformation and symbols of all generators running
 		this[_pending] = new Set()
 		// original paths -> number of other files they're currently waiting on to exist
 		this[_waiting] = new Map()
@@ -66,85 +91,40 @@ export default class Defiler extends EventEmitter {
 
 	// read-only getters
 
-	get status() {
-		return this[_status]
-	}
-
-	get origFiles() {
-		return this[_origFiles]
-	}
-
 	get files() {
+		if (this[_status] === null) throw new Error('defiler.files: cannot access before calling exec')
 		return this[_files]
 	}
 
-	get origPaths() {
-		return [...this[_origFiles].keys()].sort()
-	}
-
-	// pre-exec (configuration) methods
-
-	// register one or more directories/Watchers
-	dir(...dirs) {
-		this[_checkBeforeExec]('dir')
-		for (let config of dirs.filter(Boolean)) {
-			let { dir, read = true, enc = 'utf8', watch = true, debounce = 10 } = config
-			dir = resolve(dir)
-			let watcher = new Watcher(dir, watch, debounce)
-			this[_watchers].push({ watcher, dir, read, enc, watch })
-		}
-		return this
-	}
-
-	// register one or more transforms
-	transform(...transforms) {
-		this[_checkBeforeExec]('transform')
-		this[_transforms].push(...transforms.filter(Boolean))
-		return this
-	}
-
-	// register one or more generators
-	generator(generators) {
-		this[_checkBeforeExec]('generator')
-		for (let [path, generator] of Object.entries(generators)) {
-			if (path && generator) this[_generators].set(path, generator)
-		}
-		return this
+	get paths() {
+		if (this[_status] === null) throw new Error('defiler.paths: cannot access before calling exec')
+		return this[_paths]
 	}
 
 	// exec
 
 	async exec() {
-		this[_checkBeforeExec]('exec')
+		if (this[_status] !== null) throw new Error('defiler.exec: cannot call more than once')
 		this[_status] = false
 		this[_processing] = true
 		let promise = new Promise((res, rej) => {
 			this[_done].resolve = res
 			this[_done].reject = rej
 		})
-		// init all Watcher instances; note that all files have pending transforms
-		let files = []
-		await Promise.all(
-			this[_watchers].map(async ({ watcher, dir, read, enc, watch }) => {
-				if (watch) {
-					watcher.on('', ({ event, path, stat }) => {
-						this[_enqueue]({ event, dir, path, stat, read, enc })
-					})
-				}
-				for (let { path, stat } of await watcher.init()) {
-					files.push({ dir, path, stat, read, enc })
-					this[_origFiles].set(path, null)
-					this[_pending].add(path)
-				}
-			}),
-		)
-		for (let path of this[_generators].keys()) this[_pending].add(path)
-		// process each physical file
-		for (let { dir, path, stat, read, enc } of files) {
-			this[_wait](this[_processPhysicalFile](dir, path, stat, read, enc))
+		// init the Watcher instance
+		let { watcher, watch } = this[_dir]
+		if (watch) watcher.on('', event => this[_enqueue](event))
+		let files = await watcher.init()
+		// note that all files are pending transformation
+		for (let { path } of files) {
+			this[_paths].add(path)
+			this[_pending].add(path)
 		}
-		// process each generated file
-		for (let path of this[_generators].keys()) this[_wait](this[_handleGeneratedFile](path))
+		for (let symbol of this[_generators].keys()) this[_pending].add(symbol)
+		// process each physical file
+		for (let { path, stat } of files) this[_wait](this[_processPhysicalFile](path, stat))
+		// process each generator
+		for (let symbol of this[_generators].keys()) this[_wait](this[_processGenerator](symbol))
 		// wait and finish up
 		await promise
 		this[_status] = true
@@ -154,20 +134,25 @@ export default class Defiler extends EventEmitter {
 	// post-exec methods
 
 	// add a new non-physical file
-	async file(file) {
-		this[_checkAfterExec]('file')
+	async add(file) {
+		if (this[_status] === null) throw new Error('defiler.add: cannot call before calling exec')
+		if (typeof file !== 'object') throw new TypeError('defiler.add: file must be an object')
 		let { path } = file
 		if (!(file instanceof File)) file = Object.assign(new File(), file)
 		await this[_wait](this[_transformFile](file))
 		this[_files].set(path, file)
-		this.emit('file', { defiler: this, path, file })
+		this.emit('file', { defiler: this, file })
 		this[_found](path)
 		this[_processDependents](path)
 	}
 
 	// mark dependence of one file on another
 	depend(dependent, path) {
-		this[_checkAfterExec]('depend')
+		if (this[_status] === null) throw new Error('defiler.depend: cannot call before calling exec')
+		if (typeof dependent !== 'string' && !this[_generators].has(dependent)) {
+			throw new TypeError('defiler.depend: dependent must be a string')
+		}
+		if (typeof path !== 'string') throw new TypeError('defiler.depend: path must be a string')
 		if (this[_dependents].has(dependent)) {
 			this[_dependents].get(dependent).add(path)
 		} else {
@@ -176,14 +161,6 @@ export default class Defiler extends EventEmitter {
 	}
 
 	// private methods
-
-	[_checkBeforeExec](methodName) {
-		if (this[_status] !== null) throw new Error(`Cannot call ${methodName} after calling exec`)
-	}
-
-	[_checkAfterExec](methodName) {
-		if (this[_status] === null) throw new Error(`Cannot call ${methodName} before calling exec`)
-	}
 
 	// add another promise that must resolve before the initial exec wave can finish
 	[_wait](promise) {
@@ -200,13 +177,15 @@ export default class Defiler extends EventEmitter {
 		if (this[_processing]) return
 		this[_processing] = true
 		while (this[_queue].length) {
-			let { event, dir, path, stat, read, enc } = this[_queue].shift()
+			let { event, path, stat } = this[_queue].shift()
 			if (event === '+') {
-				await this[_processPhysicalFile](dir, path, stat, read, enc)
+				await this[_processPhysicalFile](path, stat)
 			} else if (event === '-') {
+				let file = this[_files].get(path)
+				this[_paths].delete(path)
 				this[_origFiles].delete(path)
 				this[_files].delete(path)
-				this.emit('deleted', { defiler: this, path })
+				this.emit('deleted', { defiler: this, file })
 				this[_processDependents](path)
 			}
 		}
@@ -214,12 +193,14 @@ export default class Defiler extends EventEmitter {
 	}
 
 	// create a file object for a physical file and process it
-	async [_processPhysicalFile](dir, path, stat, read, enc) {
-		let origFile = Object.assign(new File(), { path, stat, enc })
-		if (read) origFile.bytes = await readFile(dir + '/' + path)
-		this[_origFiles].set(path, origFile)
-		this.emit('origFile', { defiler: this, file: origFile })
-		await this[_processFile](origFile)
+	async [_processPhysicalFile](path, stat) {
+		let { dir, read, enc } = this[_dir]
+		let file = Object.assign(new File(), { path, stat, enc })
+		if (read) file.bytes = await readFile(dir + '/' + path)
+		this[_paths].add(path)
+		this[_origFiles].set(path, file)
+		this.emit('read', { defiler: this, file })
+		await this[_processFile](file)
 	}
 
 	// transform a file, store it, and process dependents
@@ -227,26 +208,23 @@ export default class Defiler extends EventEmitter {
 		let file = Object.assign(new File(), origFile)
 		await this[_transformFile](file)
 		this[_files].set(origFile.path, file)
-		this.emit('file', { defiler: this, path: origFile.path, file })
+		this.emit('file', { defiler: this, file })
 		this[_found](origFile.path)
 		this[_processDependents](origFile.path)
 	}
 
-	// perform all transforms on a file
+	// transform a file
 	async [_transformFile](file) {
 		let { path } = file
 		this[_pending].add(path)
 		try {
-			for (let transform of this[_transforms]) {
-				await transform({
-					defiler: this,
-					path,
-					file,
-					get: dependency => this[_get](path, dependency),
-				})
-			}
+			await this[_transform]({
+				defiler: this,
+				file,
+				get: dependency => this[_get](path, dependency),
+			})
 		} catch (error) {
-			this.emit('error', { defiler: this, path, file, error })
+			this.emit('error', { defiler: this, file, error })
 		}
 		this[_pending].delete(path)
 		if (!this[_status] && [...this[_pending]].every(path => this[_waiting].get(path))) {
@@ -256,20 +234,16 @@ export default class Defiler extends EventEmitter {
 		}
 	}
 
-	// run a generator and transform and add the file
-	async [_handleGeneratedFile](path) {
-		let file
+	// run the generator given by the symbol
+	async [_processGenerator](symbol) {
+		this[_pending].add(symbol)
+		let generator = this[_generators].get(symbol)
 		try {
-			file = new File(path)
-			await this[_generators].get(path)({
-				defiler: this,
-				file,
-				get: dependency => this[_get](path, dependency),
-			})
-			await this.file(file)
+			await generator({ defiler: this, get: dependency => this[_get](symbol, dependency) })
 		} catch (error) {
-			this.emit('error', { defiler: this, path, file, error })
+			this.emit('error', { defiler: this, generator, error })
 		}
+		this[_pending].delete(symbol)
 	}
 
 	// wait for a file to be available and mark another file as depending on it
@@ -302,10 +276,10 @@ export default class Defiler extends EventEmitter {
 			}
 		}
 		for (let dependent of dependents) {
-			if (this[_generators].has(dependent)) {
-				this[_handleGeneratedFile](dependent)
-			} else if (this[_origFiles].has(dependent)) {
+			if (this[_origFiles].has(dependent)) {
 				this[_processFile](this[_origFiles].get(dependent))
+			} else if (this[_generators].has(dependent)) {
+				this[_processGenerator](dependent)
 			}
 		}
 	}
