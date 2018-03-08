@@ -105,7 +105,7 @@ export default class Defiler extends EventEmitter {
 		}
 		for (let symbol of this[_generators].keys()) this[_pending].add(symbol)
 		// process each physical file
-		for (let { path, stat } of files) this[_waiter].add(this[_processPhysicalFile](path, stat))
+		for (let { path, stats } of files) this[_waiter].add(this[_processPhysicalFile](path, stats))
 		// process each generator
 		for (let symbol of this[_generators].keys()) this[_waiter].add(this[_processGenerator](symbol))
 		// wait and finish up
@@ -151,10 +151,10 @@ export default class Defiler extends EventEmitter {
 		if (this[_processing]) return
 		this[_processing] = true
 		while (this[_queue].length) {
-			let { event, path, stat } = this[_queue].shift()
+			let { event, path, stats } = this[_queue].shift()
 			if (event === '+') {
 				this[_waiter].init()
-				this[_waiter].add(this[_processPhysicalFile](path, stat))
+				this[_waiter].add(this[_processPhysicalFile](path, stats))
 				await this[_waiter].promise
 			} else if (event === '-') {
 				let file = this.files.get(path)
@@ -169,9 +169,9 @@ export default class Defiler extends EventEmitter {
 	}
 
 	// create a file object for a physical file and process it
-	async [_processPhysicalFile](path, stat) {
+	async [_processPhysicalFile](path, stats) {
 		let { dir, read, enc } = this[_dir]
-		let file = Object.assign(new File(), { path, stat, enc })
+		let file = Object.assign(new File(), { path, stats, enc })
 		if (read) file.bytes = await readFile(dir + '/' + path)
 		this.paths.add(path)
 		this[_origFiles].set(path, file)

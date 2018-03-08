@@ -39,19 +39,19 @@ export default class Watcher extends EventEmitter {
 	}
 
 	// recurse directroy, get stats, set up FSWatcher instances
-	// returns array of { file, stat }
+	// returns array of { file, stats }
 	async init() {
 		await this[_recurse](this[_dir])
-		return [...this[_files].entries()].map(([path, stat]) => ({ path, stat }))
+		return [...this[_files].entries()].map(([path, stats]) => ({ path, stats }))
 	}
 
 	// recurse a given directory
 	async [_recurse](full) {
 		let path = full.slice(this[_dir].length + 1)
-		let fileStat = await stat(full)
-		if (fileStat.isFile()) {
-			this[_files].set(path, fileStat)
-		} else if (fileStat.isDirectory()) {
+		let stats = await stat(full)
+		if (stats.isFile()) {
+			this[_files].set(path, stats)
+		} else if (stats.isDirectory()) {
 			if (this[_watch]) this[_dirs].set(path, watch(full, this[_handle].bind(this, full)))
 			await Promise.all((await readdir(full)).map(sub => this[_recurse](full + '/' + sub)))
 		}
@@ -79,17 +79,17 @@ export default class Watcher extends EventEmitter {
 			let full = this[_queue].shift()
 			let path = full.slice(this[_dir].length + 1)
 			try {
-				let fileStat = await stat(full)
-				if (fileStat.isFile()) {
+				let stats = await stat(full)
+				if (stats.isFile()) {
 					// note the new/changed file
-					this[_files].set(path, fileStat)
-					this.emit('', { event: '+', path, stat: fileStat })
-				} else if (fileStat.isDirectory() && !this[_dirs].has(path)) {
+					this[_files].set(path, stats)
+					this.emit('', { event: '+', path, stats })
+				} else if (stats.isDirectory() && !this[_dirs].has(path)) {
 					// note the new directory: start watching it, and report any files in it
 					await this[_recurse](full)
-					for (let [newPath, fileStat] of this[_files].entries()) {
+					for (let [newPath, stats] of this[_files].entries()) {
 						if (newPath.startsWith(path + '/')) {
-							this.emit('', { event: '+', path: newPath, stat: fileStat })
+							this.emit('', { event: '+', path: newPath, stats })
 						}
 					}
 				}

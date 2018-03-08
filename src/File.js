@@ -10,8 +10,8 @@ export default class File {
 		this[_dir] = this[_filename] = this[_ext] = null
 		// all historical paths of file
 		this.paths = path ? [path] : []
-		// stat of file
-		this.stat = null
+		// stats of file
+		this.stats = null
 		// encoding
 		this[_enc] = 'utf8'
 		// Buffer of file contents
