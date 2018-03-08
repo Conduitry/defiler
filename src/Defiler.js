@@ -181,7 +181,7 @@ export default class Defiler extends EventEmitter {
 
 	// transform a file, store it, and process dependents
 	async [_processFile](origFile) {
-		let file = Object.assign(new File(), origFile)
+		let file = Object.assign(new File(), origFile, { paths: [origFile.path] })
 		await this[_transformFile](file)
 		this.files.set(origFile.path, file)
 		this.emit('file', { defiler: this, file })
