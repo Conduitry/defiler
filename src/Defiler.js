@@ -3,6 +3,7 @@ import { readFile } from './fs.js'
 import { resolve } from 'path'
 
 import File from './File.js'
+import Waiter from './Waiter.js'
 import Watcher from './Watcher.js'
 
 import symbols from './symbols.js'
@@ -14,14 +15,13 @@ let {
 	_dir,
 	_transform,
 	_generators,
-	_done,
+	_waiter,
 	_pending,
 	_waiting,
 	_available,
 	_dependents,
 	_queue,
 	_processing,
-	_wait,
 	_enqueue,
 	_processPhysicalFile,
 	_processFile,
@@ -73,8 +73,8 @@ export default class Defiler extends EventEmitter {
 		// unique symbols -> registered generators
 		this[_generators] = new Map()
 		for (let generator of generators) this[_generators].set(Symbol(), generator)
-		// { count, resolve, reject } object for main promise for the first exec wave
-		this[_done] = { count: 0, resolve: null, reject: null }
+		// Waiter instance, to help wait for all promises in the current wave to resolve
+		this[_waiter] = new Waiter()
 		// original paths of all files currently undergoing transformation and symbols of all generators running
 		this[_pending] = new Set()
 		// original paths -> number of other files they're currently waiting on to exist
@@ -107,10 +107,7 @@ export default class Defiler extends EventEmitter {
 		if (this[_status] !== null) throw new Error('defiler.exec: cannot call more than once')
 		this[_status] = false
 		this[_processing] = true
-		let promise = new Promise((res, rej) => {
-			this[_done].resolve = res
-			this[_done].reject = rej
-		})
+		this[_waiter].init()
 		// init the Watcher instance
 		let { watcher, watch } = this[_dir]
 		if (watch) watcher.on('', event => this[_enqueue](event))
@@ -122,11 +119,11 @@ export default class Defiler extends EventEmitter {
 		}
 		for (let symbol of this[_generators].keys()) this[_pending].add(symbol)
 		// process each physical file
-		for (let { path, stat } of files) this[_wait](this[_processPhysicalFile](path, stat))
+		for (let { path, stat } of files) this[_waiter].add(this[_processPhysicalFile](path, stat))
 		// process each generator
-		for (let symbol of this[_generators].keys()) this[_wait](this[_processGenerator](symbol))
+		for (let symbol of this[_generators].keys()) this[_waiter].add(this[_processGenerator](symbol))
 		// wait and finish up
-		await promise
+		await this[_waiter].promise
 		this[_status] = true
 		this[_processing] = false
 	}
@@ -139,7 +136,7 @@ export default class Defiler extends EventEmitter {
 		if (typeof file !== 'object') throw new TypeError('defiler.add: file must be an object')
 		let { path } = file
 		if (!(file instanceof File)) file = Object.assign(new File(), file)
-		await this[_wait](this[_transformFile](file))
+		await this[_waiter].add(this[_transformFile](file))
 		this[_files].set(path, file)
 		this.emit('file', { defiler: this, file })
 		this[_found](path)
@@ -162,15 +159,6 @@ export default class Defiler extends EventEmitter {
 
 	// private methods
 
-	// add another promise that must resolve before the initial exec wave can finish
-	[_wait](promise) {
-		if (!this[_status]) {
-			this[_done].count++
-			promise.then(() => --this[_done].count || this[_done].resolve(), this[_done].reject)
-		}
-		return promise
-	}
-
 	// add a Watcher event to the queue, and handle queued events
 	async [_enqueue](event) {
 		this[_queue].push(event)
@@ -179,7 +167,9 @@ export default class Defiler extends EventEmitter {
 		while (this[_queue].length) {
 			let { event, path, stat } = this[_queue].shift()
 			if (event === '+') {
-				await this[_processPhysicalFile](path, stat)
+				this[_waiter].init()
+				this[_waiter].add(this[_processPhysicalFile](path, stat))
+				await this[_waiter].promise
 			} else if (event === '-') {
 				let file = this[_files].get(path)
 				this[_paths].delete(path)
