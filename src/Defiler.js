@@ -8,9 +8,7 @@ import Watcher from './Watcher.js'
 
 import symbols from './symbols.js'
 let {
-	_paths,
 	_origFiles,
-	_files,
 	_status,
 	_dir,
 	_transform,
@@ -58,11 +56,11 @@ export default class Defiler extends EventEmitter {
 		}
 		super()
 		// set of original paths for all physical files
-		this[_paths] = new Set()
+		this.paths = new Set()
 		// original paths -> original files for all physical files
 		this[_origFiles] = new Map()
 		// original paths -> transformed files for all physical and virtual files
-		this[_files] = new Map()
+		this.files = new Map()
 		// null = exec not called; false = exec pending; true = exec finished
 		this[_status] = null
 		// information about the directory to watch
@@ -89,18 +87,6 @@ export default class Defiler extends EventEmitter {
 		this[_processing] = false
 	}
 
-	// read-only getters
-
-	get files() {
-		if (this[_status] === null) throw new Error('defiler.files: cannot access before calling exec')
-		return this[_files]
-	}
-
-	get paths() {
-		if (this[_status] === null) throw new Error('defiler.paths: cannot access before calling exec')
-		return this[_paths]
-	}
-
 	// exec
 
 	async exec() {
@@ -114,7 +100,7 @@ export default class Defiler extends EventEmitter {
 		let files = await watcher.init()
 		// note that all files are pending transformation
 		for (let { path } of files) {
-			this[_paths].add(path)
+			this.paths.add(path)
 			this[_pending].add(path)
 		}
 		for (let symbol of this[_generators].keys()) this[_pending].add(symbol)
@@ -137,7 +123,7 @@ export default class Defiler extends EventEmitter {
 		let { path } = file
 		if (!(file instanceof File)) file = Object.assign(new File(), file)
 		await this[_waiter].add(this[_transformFile](file))
-		this[_files].set(path, file)
+		this.files.set(path, file)
 		this.emit('file', { defiler: this, file })
 		this[_found](path)
 		this[_processDependents](path)
@@ -171,10 +157,10 @@ export default class Defiler extends EventEmitter {
 				this[_waiter].add(this[_processPhysicalFile](path, stat))
 				await this[_waiter].promise
 			} else if (event === '-') {
-				let file = this[_files].get(path)
-				this[_paths].delete(path)
+				let file = this.files.get(path)
+				this.paths.delete(path)
 				this[_origFiles].delete(path)
-				this[_files].delete(path)
+				this.files.delete(path)
 				this.emit('deleted', { defiler: this, file })
 				this[_processDependents](path)
 			}
@@ -187,7 +173,7 @@ export default class Defiler extends EventEmitter {
 		let { dir, read, enc } = this[_dir]
 		let file = Object.assign(new File(), { path, stat, enc })
 		if (read) file.bytes = await readFile(dir + '/' + path)
-		this[_paths].add(path)
+		this.paths.add(path)
 		this[_origFiles].set(path, file)
 		this.emit('read', { defiler: this, file })
 		await this[_processFile](file)
@@ -197,7 +183,7 @@ export default class Defiler extends EventEmitter {
 	async [_processFile](origFile) {
 		let file = Object.assign(new File(), origFile)
 		await this[_transformFile](file)
-		this[_files].set(origFile.path, file)
+		this.files.set(origFile.path, file)
 		this.emit('file', { defiler: this, file })
 		this[_found](origFile.path)
 		this[_processDependents](origFile.path)
@@ -240,7 +226,7 @@ export default class Defiler extends EventEmitter {
 	async [_get](dependent, path) {
 		if (Array.isArray(path)) return Promise.all(path.map(path => this[_get](dependent, path)))
 		this.depend(dependent, path)
-		if (!this[_status] && !this[_files].has(path)) {
+		if (!this[_status] && !this.files.has(path)) {
 			this[_waiting].set(dependent, (this[_waiting].get(dependent) || 0) + 1)
 			if (this[_available].has(path)) {
 				await this[_available].get(path).promise
@@ -252,7 +238,7 @@ export default class Defiler extends EventEmitter {
 			}
 			this[_waiting].set(dependent, this[_waiting].get(dependent) - 1)
 		}
-		return this[_files].get(path)
+		return this.files.get(path)
 	}
 
 	// re-process all files that depend on a particular path
