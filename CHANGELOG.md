@@ -1,3 +1,9 @@
+# v0.12.1
+
+- Document `file.stats` (formerly `file.stat`, shhh)
+- Wait for all `defiler.add`ed files to settle before proceeding with handling the next watch event
+- Prevent mutations to `file.paths` from making their way back into the original copy of the `File`
+
 # v0.12.0
 
 - Simplify the API yet again - see docs
