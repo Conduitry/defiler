@@ -34,6 +34,10 @@ The filename (including the extension) of the file.
 
 The extension (including the preceding `.`) of the file.
 
+### `stats`
+
+The `fs.Stats` of the file.
+
 ### `bytes`
 
 The file's contents can be updated by getting or setting `bytes`, which is a `Buffer`.
