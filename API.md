@@ -67,9 +67,9 @@ A new `Defiler` instance to represent a collection of physical files and virtual
 	- `watch` - _(optional)_ whether to actually watch the directory for changes. Defaults to `true`. If `false`, the files will still be run through the transform, but any changes to them will not be
 	- `debounce` - _(optional)_ The length of the timeout in milliseconds to use to debounce incoming events from `fs.watch`. Defaults to 10. Multiple events are often emitted for a single change, and events can also be emitted before `fs.stat` reports the changes. Defiler will wait until `debounce` milliseconds have passed since the last `fs.watch` event for a file before handling it. The default of 10ms Works On My Machine
 - Transform configuration
-	- `transform({ defiler, file, get })` - a transform function, which is passed an object containing the `Defiler` instance, the `File` instance to mutate, and a function `get(path)` (see [the `get(path)` function](#the-getpath-function)). The transform function can return a `Promise` to indicate when it's done
+	- `transform({ defiler, file })` - a transform function, which is passed an object containing the `Defiler` instance and the `File` instance to mutate. The transform function can return a `Promise` to indicate when it's done
 - Generator configuration
-	- `generators` - an array of generator functions, each of the form `generator({ defiler, get })`. Each generator is passed an object containing the `Defiler` instance and a function `get(path)` (see [the `get(path)` function](#the-getpath-function)). Each generator function can return a `Promise` to indicate when it's done
+	- `generators` - an array of generator functions, each of the form `generator({ defiler })`. Each generator is passed an object containing the `Defiler` instance. Each generator function can return a `Promise` to indicate when it's done
 
 ## Properties
 
@@ -81,29 +81,15 @@ A `Set` of the original relative paths of all of the physical files. (This does 
 
 A `Map` of original relative paths to `File` instances for the transformed files. (This includes physical and virtual files.) During the initial wave of processing, this will only contain the files that are done being transformed.
 
-## Execution
+## Methods
 
 ### `exec()`
 
 Start the Defiler running. Returns a promise that resolves when the initial wave of processing is complete.
 
-## Operation
+### `get(path)`
 
-### `add(file)`
-
-Manually insert a virtual `File`, running it through the transform.
-
-For convenience, you can also call this with a plain old JavaScript object, and a new `File` instance will be created for you with properties `Object.assign`ed from the object.
-
-### `depend(dependent, path)`
-
-Manually register that `dependent` depends on `path`. When the file at `path` changes, the file at `dependent` will be automatically re-transformed.
-
-Defiler will typically call this automatically (via [the `get(path)` function](#the-getpath-function)), and so you shouldn't need to call it unless you're doing something peculiar.
-
-## The `get(path)` function
-
-The transform and generators are all passed a `get` function. This waits for a file or array of files to be ready and retrieves the `File` instance(s).
+Wait for a file or array of files to be ready and retrieve the `File` instance(s).
 
 - `path` - the path, or array of paths, to wait for to become available and to then return
 
@@ -111,7 +97,15 @@ Returns a `Promise` resolving to the `File` instance or an array of `File` insta
 
 This can be asked for physical or virtual files. If you ask for a file during the initial wave of processing before it is available, Defiler will wait for the file to be ready and transformed. If it ever happens that every in-progress file is waiting for a file to become available, the deadlock will be broken by Defiler resolving all of the pending `File`s to `undefined`. This may happen multiple times during the initial wave of processing.
 
-When used in your transform, this will also register the file being transformed as depending on the file or files in `path`, using the [`depend` method](#dependdependent-path). Once the initial wave of processing is complete, any changes to dependencies will cause their dependents to be re-transformed. When used in a generator, this will register the generator as depending on the file on files in `path`, and any changes to dependencies will cause the generator to be re-run.
+When used in your transform, this will also register the file being transformed as depending on the file or files in `path`. Once the initial wave of processing is complete, any changes to dependencies will cause their dependents to be re-transformed. When used in a generator, this will register the generator as depending on the file on files in `path`, and any changes to dependencies will cause the generator to be re-run.
+
+### `add(file)`
+
+Manually insert a virtual `File`, running it through the transform.
+
+- `file` - the `File` object (or plain old JavaScript object) representing the virtual file to add
+
+For convenience, you can call this with a POJO, and a new `File` instance will be created for you with properties `Object.assign`ed from the object.
 
 ## Events
 

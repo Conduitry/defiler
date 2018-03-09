@@ -14,29 +14,29 @@ See the [API docs](API.md#file) for more information.
 
 Every file (physical and virtual) is run through the transform function you register with Defiler. The transform mutates the object representing the file in-place, and returns a promise indicating when it's finished.
 
-The transform is called, for each file, with an object containing `defiler` (the `Defiler` instance), `file` (the `File` instance), and a `get` function (see [dependence](#dependence)). The transform should mutate the `file` object as it sees fit. It can also take whichever actions it wishes based on the file (including, for example, writing output to disk). Files' paths can be changed as they're transformed, but the main way to refer to them will continue to be by their original path (see [dependence](#dependence)).
+The transform is called, for each file, with an object containing `defiler` (the `Defiler` instance) and `file` (the `File` instance). The transform should mutate the `file` object as it sees fit. It can also take whichever actions it wishes based on the file (including, for example, writing output to disk). Files' paths can be changed as they're transformed, but the main way to refer to them will continue to be by their original path (see [dependence](#dependence)).
 
 ## Dependence
 
 Files can be made to depend on other files, so that changes to a dependency cause the dependent to be re-transformed. For physical files, the file does not need to be re-read from the disk before it can be re-transformed, as the original version is kept in memory.
 
-The `get` function passed to the transform lets you depend on and retrieve other transformed files. It should be passed the original path of a file, and will return a `Promise` resolving to the transformed `File` instance. If the requested file does not exist (or if you have a deadlock via a system of mutually-depending files, none of which will continue transforming until another one finishes), the `Promise` will resolve to `undefined`.
+The `defiler.get(path)` method, when used inside the transform, lets you depend on and retrieve other transformed files. It should be passed the original path of a file, and will return a `Promise` resolving to the transformed `File` instance. If the requested file does not exist (or if you have a deadlock via a system of mutually-depending files, none of which will continue transforming until another one finishes), the `Promise` will resolve to `undefined`.
 
-The `get` function can also be passed an array of (original) paths, in which case it will return a `Promise` resolving to an array of `File` instances (or `undefined`s).
+The `defiler.get` method can also be passed an array of (original) paths, in which case it will return a `Promise` resolving to an array of `File` instances (or `undefined`s).
 
-See the [API docs](API.md#the-getpath-function) for more information.
+See the [API docs](API.md#getpath) for more information.
 
 ## Virtual files
 
-During the transform's processing of a file, you can also create virtual files, which don't directly correspond one-to-one with physical files. The `Defiler` instance has an `add(file)` method, which you can pass a `File` instance to (or a POJO, which will be turned into a `File`). The virtual file will run through the transform and will thereafter be treated pretty much like a physical file. In particular, you can make other files depend on it with `get`.
+During the transform's processing of a file, you can also create virtual files, which don't directly correspond one-to-one with physical files. The `Defiler` instance has a `defiler.add(file)` method, which you can pass a `File` instance to (or a POJO, which will be turned into a `File`). The virtual file will run through the transform and will thereafter be treated pretty much like a physical file. In particular, you can make other files depend on it with `defiler.get(path)`.
 
-Since Defiler has no way of knowing which virtual files will be created from transforming which files, when `get` is used to request a file that doesn't exist yet, Defiler waits until it does get created. Requesting a file that's never going to exist would cause a deadlock, so Defiler resolves this as a generalization of the above-mentioned deadlock resolution: If it ever happens that every in-process action is waiting for some other transformed file to exist, Defiler will resolve each of those pending `Promise`s returned by `get` to `undefined`.
+Since Defiler has no way of knowing which virtual files will be created from transforming which files, when `defiler.get` is used to request a file that doesn't exist yet, Defiler waits until it does get created. Requesting a file that's never going to exist would cause a deadlock, so Defiler resolves this as a generalization of the above-mentioned deadlock resolution: If it ever happens that every in-process action is waiting for some other transformed file to exist, Defiler will resolve each of those pending `Promise`s returned by `defiler.get` to `undefined`.
 
 ## Generators
 
-Generators are an independent way of interacting with the Defiler instance, for things that do not fit well into the main transform. Each generator is a function that accepts one argument, an object containing `defiler` and `get`. A generator would typically call `get` and/or `defiler.add` to retrieve dependencies and write new virtual files. Automatic dependence handling also works here, so when one of the files retrieved by `get` changes, that generator will be re-run.
+Generators are an independent way of interacting with the Defiler instance, for things that do not fit well into the main transform. Each generator is a function that accepts one argument, an object containing `defiler`. A generator would typically call `defiler.get` and/or `defiler.add` to retrieve dependencies and write new virtual files. Automatic dependence handling also works here, so when one of the files retrieved by `defiler.get` changes, that generator will be re-run.
 
-It's beneficial to write more, smaller generators, rather than one monolithic ones. This helps ensure that more work than needed is not done when a file changes.
+It's beneficial to write multiple smaller generators, rather than one monolithic ones. This helps ensure that unneeded recalculation is not done when a file changes.
 
 # Usage
 
@@ -48,13 +48,8 @@ Useful things available on the `Defiler` instance for you to use in the transfor
 
 - [`defiler.paths`](API.md#paths-1) - a `Set` of the paths of all of the physical files
 - [`defiler.files`](API.md#files) - a `Map` of original paths to the transformed `File` instances
+- [`defiler.get(path)`](API.md#getpath) - a method to retrieve one or more transformed `File`s based on their original paths
 - [`defiler.add(file)`](API.md#addfile) - a method to add a virtual file, which is then transformed like a physical one is, and which can be depended on by other files
-
-Also:
-
-- [`get(path)`](API.md#the-getpath-function) - not a method on the `Defiler` instance, but a function that is passed to the transform and to the generators, which retrieves one or more transformed `File`s based on their original paths
-
-The `Defiler` instance also [emits some events](API.md#events) you can listen for.
 
 # In closing
 
