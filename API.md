@@ -2,21 +2,21 @@ The API consists of two classes, `File` and `Defiler`.
 
 A `File` represents a physical file on the disk, or a virtual file with no particular corresponding file in the file system, or a partially or fully transformed physical or virtual file.
 
-A `Defiler` represents a set of watched files on the disk, plus a set of virtual files, plus a transform to execute on them.
+A `Defiler` represents a set of watched files on the disk, plus a set of virtual files, plus the operations to perform on them.
 
 # `File`
 
 ## Constructor
 
-### `new File(path)`
+### `new File()`
 
-A new `File` instance to serve as the representation of a physical file, a virtual file, or a transformed file. `path` is the relative path to the file, from some understood root. The past is always separated by forward slashes, regardless of platform.
+A new `File` instance to serve as the representation of a physical file, a virtual file, or a transformed file.
 
 ## Properties
 
 ### `path`
 
-The file's path can be retrieved or updated by getting and setting `path`. Updating `dir`, `filename`, or `ext` also update this.
+The relative path to the file, from some understood root. The path is always separated by forward slashes, regardless of platform. Updating `dir`, `filename`, or `ext` also updates this.
 
 ### `paths`
 
@@ -42,11 +42,13 @@ The `fs.Stats` of the file.
 
 The file's contents can be updated by getting or setting `bytes`, which is a `Buffer`.
 
+Don't mutate this property. This causes various unwanted effects. Instead, assign it a new `Buffer` instance.
+
 ### `text`
 
 The file's contents can also be updated by getting or setting `text`, which is a string.
 
-Mutations to the `bytes` `Buffer` will not be reflected in `text`, but reassigning the entire `bytes` or `text` properties will keep the other in sync.
+Reassigning the entire `bytes` or `text` properties will keep the other in sync.
 
 ### `enc`
 
@@ -85,7 +87,9 @@ A `Map` of original relative paths to `File` instances for the transformed files
 
 ### `exec()`
 
-Start the Defiler running. Returns a promise that resolves when the initial wave of processing is complete.
+Start the `Defiler` running.
+
+Returns a `Promise` that resolves when the initial wave of processing is complete.
 
 ### `get(path)`
 
@@ -103,7 +107,7 @@ When used in your transform, this will also register the file being transformed 
 
 Manually insert a virtual `File`, running it through the transform.
 
-- `file` - the `File` object (or plain old JavaScript object) representing the virtual file to add
+- `file` - the `File` instance (or plain old JavaScript object) representing the virtual file to add
 
 For convenience, you can call this with a POJO, and a new `File` instance will be created for you with properties `Object.assign`ed from the object.
 
