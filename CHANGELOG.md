@@ -1,3 +1,7 @@
+# v0.13.1
+
+- Fix `defiler.get` typechecking
+
 # v0.13.0
 
 - Remove concept of '`get` function' passed to transform and generators
