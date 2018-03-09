@@ -25,7 +25,9 @@ let {
 	_processFile,
 	_transformFile,
 	_processGenerator,
-	_get,
+	_root,
+	_dependent,
+	_sub,
 	_processDependents,
 	_found,
 } = symbols
@@ -68,14 +70,15 @@ export default class Defiler extends EventEmitter {
 			[_pending]: new Set(), // original paths of all files currently undergoing transformation and symbols of all generators running
 			[_waiting]: new Map(), // original paths -> number of other files they're currently waiting on to exist
 			[_available]: new Map(), // original paths -> { promise, resolve } objects for when awaited files become available
+			[_root]: null, // (via proxy) the root dependent, for use in _dependents
+			[_dependent]: null, // (via proxy) the immediate dependent, for use in _waiting
 			[_dependents]: new Map(), // original paths of dependents -> set of original paths of dependencies, specifying changes to which files should trigger re-processing which other files
 			[_queue]: [], // queue of pending Watcher events to handle
 			[_processing]: false, // whether some Watcher event is currently already in the process of being handled
 		})
 	}
 
-	// exec
-
+	// execute everything, and return a promise that resolves when the first wave of processing is complete
 	async exec() {
 		if (this[_status] !== null) throw new Error('defiler.exec: cannot call more than once')
 		this[_status] = false
@@ -101,7 +104,40 @@ export default class Defiler extends EventEmitter {
 		this[_processing] = false
 	}
 
-	// post-exec methods
+	// wait for a file to be available and retrieve it, marking dependencies as appropriate
+	async get(path) {
+		if (
+			typeof path !== 'string' &&
+			(!Array.isArray(path) || path.some(path => typeof path !== 'string'))
+		) {
+			new TypeError('defiler.get: path must be a string or an array of strings')
+		}
+		if (Array.isArray(path)) return Promise.all(path.map(path => this.get(path)))
+		if (this[_root]) {
+			if (this[_dependents].has(this[_root])) {
+				this[_dependents].get(this[_root]).add(path)
+			} else {
+				this[_dependents].set(this[_root], new Set([path]))
+			}
+		}
+		if (!this[_status] && !this.files.has(path)) {
+			if (this[_dependent]) {
+				this[_waiting].set(this[_dependent], (this[_waiting].get(this[_dependent]) || 0) + 1)
+			}
+			if (this[_available].has(path)) {
+				await this[_available].get(path).promise
+			} else {
+				let resolve
+				let promise = new Promise(res => (resolve = res))
+				this[_available].set(path, { promise, resolve })
+				await promise
+			}
+			if (this[_dependent]) {
+				this[_waiting].set(this[_dependent], this[_waiting].get(this[_dependent]) - 1)
+			}
+		}
+		return this.files.get(path)
+	}
 
 	// add a new non-physical file
 	async add(file) {
@@ -114,20 +150,6 @@ export default class Defiler extends EventEmitter {
 		this.emit('file', { defiler: this, file })
 		this[_found](path)
 		this[_processDependents](path)
-	}
-
-	// mark dependence of one file on another
-	depend(dependent, path) {
-		if (this[_status] === null) throw new Error('defiler.depend: cannot call before calling exec')
-		if (typeof dependent !== 'string' && !this[_generators].has(dependent)) {
-			throw new TypeError('defiler.depend: dependent must be a string')
-		}
-		if (typeof path !== 'string') throw new TypeError('defiler.depend: path must be a string')
-		if (this[_dependents].has(dependent)) {
-			this[_dependents].get(dependent).add(path)
-		} else {
-			this[_dependents].set(dependent, new Set([path]))
-		}
 	}
 
 	// private methods
@@ -181,11 +203,7 @@ export default class Defiler extends EventEmitter {
 		let { path } = file
 		this[_pending].add(path)
 		try {
-			await this[_transform]({
-				defiler: this,
-				file,
-				get: dependency => this[_get](path, dependency),
-			})
+			await this[_transform]({ defiler: this[_sub](path), file })
 		} catch (error) {
 			this.emit('error', { defiler: this, file, error })
 		}
@@ -202,30 +220,18 @@ export default class Defiler extends EventEmitter {
 		this[_pending].add(symbol)
 		let generator = this[_generators].get(symbol)
 		try {
-			await generator({ defiler: this, get: dependency => this[_get](symbol, dependency) })
+			await generator({ defiler: this[_sub](symbol) })
 		} catch (error) {
 			this.emit('error', { defiler: this, generator, error })
 		}
 		this[_pending].delete(symbol)
 	}
 
-	// wait for a file to be available and mark another file as depending on it
-	async [_get](dependent, path) {
-		if (Array.isArray(path)) return Promise.all(path.map(path => this[_get](dependent, path)))
-		this.depend(dependent, path)
-		if (!this[_status] && !this.files.has(path)) {
-			this[_waiting].set(dependent, (this[_waiting].get(dependent) || 0) + 1)
-			if (this[_available].has(path)) {
-				await this[_available].get(path).promise
-			} else {
-				let resolve
-				let promise = new Promise(res => (resolve = res))
-				this[_available].set(path, { promise, resolve })
-				await promise
-			}
-			this[_waiting].set(dependent, this[_waiting].get(dependent) - 1)
-		}
-		return this.files.get(path)
+	// create a sub-defiler proxy for the given path, always overriding _dependent and only overriding _root if it is not yet set
+	[_sub](path) {
+		return new Proxy(this, {
+			get: (_, key) => (key === _dependent || (key === _root && !this[_root]) ? path : this[key]),
+		})
 	}
 
 	// re-process all files that depend on a particular path
