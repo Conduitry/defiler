@@ -49,42 +49,29 @@ export default class Defiler extends EventEmitter {
 			throw new TypeError('defiler: transform must be a function')
 		}
 		if (
-			!generators[Symbol.iterator] ||
-			[...generators].some(generator => typeof generator !== 'function')
+			!Array.isArray(generators) ||
+			generators.some(generator => typeof generator !== 'function')
 		) {
-			throw new TypeError('defiler: generators must be a collection of functions')
+			throw new TypeError('defiler: generators must be an array of functions')
 		}
 		super()
-		// set of original paths for all physical files
-		this.paths = new Set()
-		// original paths -> original files for all physical files
-		this[_origFiles] = new Map()
-		// original paths -> transformed files for all physical and virtual files
-		this.files = new Map()
-		// null = exec not called; false = exec pending; true = exec finished
-		this[_status] = null
-		// information about the directory to watch
 		dir = resolve(dir)
-		this[_dir] = { watcher: new Watcher(dir, watch, debounce), dir, read, enc, watch }
-		// the transform to run on all files
-		this[_transform] = transform
-		// unique symbols -> registered generators
-		this[_generators] = new Map()
-		for (let generator of generators) this[_generators].set(Symbol(), generator)
-		// Waiter instance, to help wait for all promises in the current wave to resolve
-		this[_waiter] = new Waiter()
-		// original paths of all files currently undergoing transformation and symbols of all generators running
-		this[_pending] = new Set()
-		// original paths -> number of other files they're currently waiting on to exist
-		this[_waiting] = new Map()
-		// original paths -> { promise, resolve } objects for when awaited files become available
-		this[_available] = new Map()
-		// original paths of dependents -> set of original paths of dependencies, specifying changes to which files should trigger re-processing which other files
-		this[_dependents] = new Map()
-		// queue of pending Watcher events to handle
-		this[_queue] = []
-		// whether some Watcher event is currently already in the process of being handled
-		this[_processing] = false
+		Object.assign(this, {
+			paths: new Set(), // set of original paths for all physical files
+			[_origFiles]: new Map(), // original paths -> original file data for all physical files
+			files: new Map(), // original paths -> transformed files for all physical and virtual files
+			[_status]: null, // null = exec not called; false = exec pending; true = exec finished
+			[_dir]: { watcher: new Watcher(dir, watch, debounce), dir, read, enc, watch }, // information about the directory to watch
+			[_transform]: transform, // the transform to run on all files
+			[_generators]: new Map(generators.map(generator => [Symbol(), generator])), // unique symbols -> registered generators
+			[_waiter]: new Waiter(), // Waiter instance, to help wait for all promises in the current wave to resolve
+			[_pending]: new Set(), // original paths of all files currently undergoing transformation and symbols of all generators running
+			[_waiting]: new Map(), // original paths -> number of other files they're currently waiting on to exist
+			[_available]: new Map(), // original paths -> { promise, resolve } objects for when awaited files become available
+			[_dependents]: new Map(), // original paths of dependents -> set of original paths of dependencies, specifying changes to which files should trigger re-processing which other files
+			[_queue]: [], // queue of pending Watcher events to handle
+			[_processing]: false, // whether some Watcher event is currently already in the process of being handled
+		})
 	}
 
 	// exec
@@ -93,7 +80,7 @@ export default class Defiler extends EventEmitter {
 		if (this[_status] !== null) throw new Error('defiler.exec: cannot call more than once')
 		this[_status] = false
 		this[_processing] = true
-		this[_waiter].init()
+		let done = this[_waiter].init()
 		// init the Watcher instance
 		let { watcher, watch } = this[_dir]
 		if (watch) watcher.on('', event => this[_enqueue](event))
@@ -109,7 +96,7 @@ export default class Defiler extends EventEmitter {
 		// process each generator
 		for (let symbol of this[_generators].keys()) this[_waiter].add(this[_processGenerator](symbol))
 		// wait and finish up
-		await this[_waiter].promise
+		await done
 		this[_status] = true
 		this[_processing] = false
 	}
@@ -153,9 +140,9 @@ export default class Defiler extends EventEmitter {
 		while (this[_queue].length) {
 			let { event, path, stats } = this[_queue].shift()
 			if (event === '+') {
-				this[_waiter].init()
+				let done = this[_waiter].init()
 				this[_waiter].add(this[_processPhysicalFile](path, stats))
-				await this[_waiter].promise
+				await done
 			} else if (event === '-') {
 				let file = this.files.get(path)
 				this.paths.delete(path)
@@ -171,22 +158,22 @@ export default class Defiler extends EventEmitter {
 	// create a file object for a physical file and process it
 	async [_processPhysicalFile](path, stats) {
 		let { dir, read, enc } = this[_dir]
-		let file = Object.assign(new File(), { path, stats, enc })
-		if (read) file.bytes = await readFile(dir + '/' + path)
+		let data = { path, stats, enc }
+		if (read) data.bytes = await readFile(dir + '/' + path)
 		this.paths.add(path)
-		this[_origFiles].set(path, file)
-		this.emit('read', { defiler: this, file })
-		await this[_processFile](file)
+		this[_origFiles].set(path, data)
+		this.emit('read', { defiler: this, file: Object.assign(new File(), data) })
+		await this[_processFile](data)
 	}
 
 	// transform a file, store it, and process dependents
-	async [_processFile](origFile) {
-		let file = Object.assign(new File(), origFile, { paths: [origFile.path] })
+	async [_processFile](data) {
+		let file = Object.assign(new File(), data)
 		await this[_transformFile](file)
-		this.files.set(origFile.path, file)
+		this.files.set(data.path, file)
 		this.emit('file', { defiler: this, file })
-		this[_found](origFile.path)
-		this[_processDependents](origFile.path)
+		this[_found](data.path)
+		this[_processDependents](data.path)
 	}
 
 	// transform a file

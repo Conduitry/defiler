@@ -20,26 +20,20 @@ let {
 export default class Watcher extends EventEmitter {
 	constructor(dir, watch, debounce) {
 		super()
-		// directory to recursively watch the contents of
-		this[_dir] = dir
-		// whether to actually watch for changes (or just walk and retrieve contents and file stats)
-		this[_watch] = watch
-		// fs.watch event debounce, in milliseconds
-		this[_debounce] = debounce
-		// paths of all (recursive) directories -> FSWatcher instances
-		this[_dirs] = new Map()
-		// paths of all (recursive) files -> file stats
-		this[_files] = new Map()
-		// paths of (recursive) files with pending debounced events -> setTimeout timer ids
-		this[_timeouts] = new Map()
-		// queue of pending FSWatcher events to handle
-		this[_queue] = []
-		// whether some FSWatcher event is currently already in the process of being handled
-		this[_processing] = false
+		Object.assign(this, {
+			[_dir]: dir, // directory to recursively watch the contents of
+			[_watch]: watch, // whether to actually watch for changes (or just walk and retrieve contents and file stats)
+			[_debounce]: debounce, // fs.watch event debounce, in milliseconds
+			[_dirs]: new Map(), // paths of all (recursive) directories -> FSWatcher instances
+			[_files]: new Map(), // paths of all (recursive) files -> file stats
+			[_timeouts]: new Map(), // paths of (recursive) files with pending debounced events -> setTimeout timer ids
+			[_queue]: [], // queue of pending FSWatcher events to handle
+			[_processing]: false, // whether some FSWatcher event is currently already in the process of being handled
+		})
 	}
 
 	// recurse directroy, get stats, set up FSWatcher instances
-	// returns array of { file, stats }
+	// returns array of { path, stats }
 	async init() {
 		await this[_recurse](this[_dir])
 		return [...this[_files].entries()].map(([path, stats]) => ({ path, stats }))

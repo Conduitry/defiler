@@ -2,22 +2,18 @@ import symbols from './symbols.js'
 let { _path, _dir, _filename, _ext, _enc, _bytes, _text } = symbols
 
 export default class File {
-	constructor(path = '') {
-		if (typeof path !== 'string') throw new TypeError('file.path must be a string')
-		// path of file
-		this[_path] = path
-		// cached dir/filename/ext values
-		this[_dir] = this[_filename] = this[_ext] = null
-		// all historical paths of file
-		this.paths = path ? [path] : []
-		// stats of file
-		this.stats = null
-		// encoding
-		this[_enc] = 'utf8'
-		// Buffer of file contents
-		this[_bytes] = null
-		// string of file contents
-		this[_text] = null
+	constructor() {
+		Object.assign(this, {
+			[_path]: null, // path of file
+			[_dir]: null, //cached dir
+			[_filename]: null, // cached filename
+			[_ext]: null, // cached ext
+			paths: [], // all historical paths of file
+			stats: null, // stats of file
+			[_enc]: 'utf8', // encoding
+			[_bytes]: null, // Buffer of file contents
+			[_text]: null, // string of file contents
+		})
 	}
 
 	get path() {
