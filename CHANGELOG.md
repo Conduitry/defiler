@@ -1,3 +1,11 @@
+# v0.13.0
+
+- Remove concept of '`get` function' passed to transform and generators
+- Add `defiler.get` method to replace it
+- Fix a tricky dependency bug: If file or generator A added a virtual file B whose transformation depended on file C, make changing file C reprocess A, not B
+- Remove `defiler.depend`, which was only exposed as a partial workaround for the above bug
+- Remove non-useful `path` argument to `File` constructor
+
 # v0.12.1
 
 - Document `file.stats` (formerly `file.stat`, shhh)
