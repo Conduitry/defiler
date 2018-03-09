@@ -110,7 +110,7 @@ export default class Defiler extends EventEmitter {
 			typeof path !== 'string' &&
 			(!Array.isArray(path) || path.some(path => typeof path !== 'string'))
 		) {
-			new TypeError('defiler.get: path must be a string or an array of strings')
+			throw new TypeError('defiler.get: path must be a string or an array of strings')
 		}
 		if (Array.isArray(path)) return Promise.all(path.map(path => this.get(path)))
 		if (this[_root]) {
