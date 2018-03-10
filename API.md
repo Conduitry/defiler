@@ -40,13 +40,13 @@ The `fs.Stats` of the file.
 
 ### `bytes`
 
-The file's contents can be updated by getting or setting `bytes`, which is a `Buffer`.
+The file's contents can be retrieved and updated by getting or setting `bytes`, which is a `Buffer`.
 
 Don't mutate this property. This causes various unwanted effects. Instead, assign it a new `Buffer` instance.
 
 ### `text`
 
-The file's contents can also be updated by getting or setting `text`, which is a string.
+The file's contents can also be retrieved and updated by getting or setting `text`, which is a string.
 
 Reassigning the entire `bytes` or `text` properties will keep the other in sync.
 
@@ -65,13 +65,13 @@ A new `Defiler` instance to represent a collection of physical files and virtual
 - Directory configuration
 	- `dir` - the directory to watch
 	- `read` - _(optional)_ whether to actually read in the contents of the files in the directory. Defaults to `true`. If `false`, the files will still be run through the transform, but they will have null `bytes` and `text`
-	- `enc` - _(optional)_ encoding to use for files read in from the directory. Defaults to `'utf8'`. This can also be changed for individual files (see [`enc`](#enc))
+	- `enc` - _(optional)_ encoding to use for files read in from the directory. Defaults to `'utf8'`. This can also be changed for individual files (see [`file.enc`](#enc))
 	- `watch` - _(optional)_ whether to actually watch the directory for changes. Defaults to `true`. If `false`, the files will still be run through the transform, but any changes to them will not be
 	- `debounce` - _(optional)_ The length of the timeout in milliseconds to use to debounce incoming events from `fs.watch`. Defaults to 10. Multiple events are often emitted for a single change, and events can also be emitted before `fs.stat` reports the changes. Defiler will wait until `debounce` milliseconds have passed since the last `fs.watch` event for a file before handling it. The default of 10ms Works On My Machine
 - Transform configuration
 	- `transform({ defiler, file })` - a transform function, which is passed an object containing the `Defiler` instance and the `File` instance to mutate. The transform function can return a `Promise` to indicate when it's done
 - Generator configuration
-	- `generators` - an array of generator functions, each of the form `generator({ defiler })`. Each generator is passed an object containing the `Defiler` instance. Each generator function can return a `Promise` to indicate when it's done
+	- `generators` - _(optional)_ an array of generator functions, each of the form `generator({ defiler })`. Each generator is passed an object containing the `Defiler` instance. Each generator function can return a `Promise` to indicate when it's done
 
 ## Properties
 
@@ -101,7 +101,7 @@ Returns a `Promise` resolving to the `File` instance or an array of `File` insta
 
 This can be asked for physical or virtual files. If you ask for a file during the initial wave of processing before it is available, Defiler will wait for the file to be ready and transformed. If it ever happens that every in-progress file is waiting for a file to become available, the deadlock will be broken by Defiler resolving all of the pending `File`s to `undefined`. This may happen multiple times during the initial wave of processing.
 
-When used in your transform, this will also register the file being transformed as depending on the file or files in `path`. Once the initial wave of processing is complete, any changes to dependencies will cause their dependents to be re-transformed. When used in a generator, this will register the generator as depending on the file on files in `path`, and any changes to dependencies will cause the generator to be re-run.
+When used in your transform, this will also register the file being transformed as depending on the file or files in `path`. Once the initial wave of processing is complete, any changes to dependencies will cause their dependents to be re-transformed. When used in a generator, this will register the generator as depending on the file or files in `path`, and any changes to dependencies will cause the generator to be re-run.
 
 ### `add(file)`
 

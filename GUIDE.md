@@ -40,6 +40,14 @@ Generators are an independent way of interacting with the Defiler instance, for 
 
 It's beneficial to write multiple smaller generators, rather than a single large one. This helps ensure that unneeded recalculation is not done when a file changes.
 
+## Waves
+
+Processing in Defiler happens in waves, sort of. During the first wave, all files have the transform run on them, all generators are run, and any virtual files added with `defiler.add` are also transformed. It's at the end of this first wave that the `Promise` returned by [`defiler.exec()`](API.md#exec) resolves. Subsequently, each change to a watched file results in another wave, during which all dependent files are re-transformed, all dependent generators are re-run, and all added virtual files are re-transformed. If any watched file changes come in while a wave is still active, a new wave will be started immediately upon the completion of the previous one. Otherwise, a new wave will be started when a new file change event comes in.
+
+It's only during the first wave that the special deadlock resolution behavior is relevant. On subsequent waves, any missing files requested via [`defiler.get(path)`](API.md#getpath) will return (a `Promise` resolving to) `undefined`. This does, however, establish a dependence relation between the two, and if the missing file ever does exist later (either as a physical or virtual file), the dependent file/generator will be re-transformed/re-run.
+
+When performing production builds, you probably only want to have a first wave, and to not watch for subsequent file changes. This can be achieved with the [`watch` option to the `Defiler` constructor](API.md#defiler).
+
 # Usage
 
 First, [create a new `Defiler` instance](API.md#defiler), initializing it with the directory to watch, the transform, and the generators.
