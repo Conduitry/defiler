@@ -102,6 +102,7 @@ export default class Defiler extends EventEmitter {
 		await done
 		this[_status] = true
 		this[_processing] = false
+		this[_enqueue]()
 	}
 
 	// wait for a file to be available and retrieve it, marking dependencies as appropriate
@@ -156,7 +157,7 @@ export default class Defiler extends EventEmitter {
 
 	// add a Watcher event to the queue, and handle queued events
 	async [_enqueue](event) {
-		this[_queue].push(event)
+		if (event) this[_queue].push(event)
 		if (this[_processing]) return
 		this[_processing] = true
 		while (this[_queue].length) {
