@@ -1,6 +1,6 @@
 # v0.13.3
 
-- Fix race condition when attempting to `defiler.get` a `File` that takes too long to process beyond the time it is waiting for other descendants
+- Fix race condition when attempting to `defiler.get` a `File` that takes too long to process beyond the time it is waiting for its own dependencies
 
 # v0.13.2
 
