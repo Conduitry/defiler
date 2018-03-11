@@ -141,16 +141,11 @@ export default class Defiler extends EventEmitter {
 	}
 
 	// add a new non-physical file
-	async add(file) {
+	add(file) {
 		if (this[_status] === null) throw new Error('defiler.add: cannot call before calling exec')
 		if (typeof file !== 'object') throw new TypeError('defiler.add: file must be an object')
-		let { path } = file
 		if (!(file instanceof File)) file = Object.assign(new File(), file)
-		await this[_waiter].add(this[_transformFile](file))
-		this.files.set(path, file)
-		this.emit('file', { defiler: this, file })
-		this[_found](path)
-		this[_processDependents](path)
+		this[_waiter].add(this[_transformFile](file))
 	}
 
 	// private methods
@@ -191,12 +186,7 @@ export default class Defiler extends EventEmitter {
 
 	// transform a file, store it, and process dependents
 	async [_processFile](data) {
-		let file = Object.assign(new File(), data)
-		await this[_transformFile](file)
-		this.files.set(data.path, file)
-		this.emit('file', { defiler: this, file })
-		this[_found](data.path)
-		this[_processDependents](data.path)
+		await this[_transformFile](Object.assign(new File(), data))
 	}
 
 	// transform a file
@@ -208,6 +198,10 @@ export default class Defiler extends EventEmitter {
 		} catch (error) {
 			this.emit('error', { defiler: this, file, error })
 		}
+		this.files.set(path, file)
+		this.emit('file', { defiler: this, file })
+		this[_found](path)
+		this[_processDependents](path)
 		this[_pending].delete(path)
 		if (!this[_status] && [...this[_pending]].every(path => this[_waiting].get(path))) {
 			// all pending files are currently waiting for one or more other files to exist
