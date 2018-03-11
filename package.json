@@ -1,6 +1,6 @@
 {
 	"name": "defiler",
-	"version": "0.13.2",
+	"version": "0.13.3",
 	"description": "A small, strange building block",
 	"keywords": ["build", "framework", "async", "watch"],
 	"main": "./dist/index.cjs.js",

@@ -1,3 +1,7 @@
+# v0.13.3
+
+- Fix race condition when attempting to `defiler.get` a `File` that takes too long to process beyond the time it is waiting for other descendants
+
 # v0.13.2
 
 - If a file change event comes in during the first wave of processing, don't wait for another event after the first wave to trigger the second wave, and instead start it immediately upon finishing the first.
