@@ -1,3 +1,7 @@
+# v0.13.4
+
+- Also wait for changes to settle if this wave was triggered by a file deletion
+
 # v0.13.3
 
 - Fix race condition when attempting to `defiler.get` a `File` that takes too long to process beyond the time it is waiting for its own dependencies
