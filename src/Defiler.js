@@ -3,34 +3,11 @@ import { readFile } from './fs.js'
 import { resolve } from 'path'
 
 import File from './File.js'
-import Waiter from './Waiter.js'
 import Watcher from './Watcher.js'
 
 import symbols from './symbols.js'
-let {
-	_origFiles,
-	_status,
-	_dir,
-	_transform,
-	_generators,
-	_waiter,
-	_pending,
-	_waiting,
-	_available,
-	_dependents,
-	_queue,
-	_processing,
-	_enqueue,
-	_processPhysicalFile,
-	_processFile,
-	_transformFile,
-	_processGenerator,
-	_root,
-	_dependent,
-	_sub,
-	_processDependents,
-	_found,
-} = symbols
+// prettier-ignore
+let { _origData, _status, _watcher, _transform, _generators, _active, _waitingFor, _whenFound, _dependencies, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _cur, _newProxy, _processDependents, _markFound } = symbols
 
 export default class Defiler extends EventEmitter {
 	constructor({
@@ -60,21 +37,19 @@ export default class Defiler extends EventEmitter {
 		dir = resolve(dir)
 		Object.assign(this, {
 			paths: new Set(), // set of original paths for all physical files
-			[_origFiles]: new Map(), // original paths -> original file data for all physical files
+			[_origData]: new Map(), // original paths -> original file data for all physical files ({ path, stats, bytes, enc })
 			files: new Map(), // original paths -> transformed files for all physical and virtual files
 			[_status]: null, // null = exec not called; false = exec pending; true = exec finished
-			[_dir]: { watcher: new Watcher(dir, watch, debounce), dir, read, enc, watch }, // information about the directory to watch
+			[_watcher]: { watcher: new Watcher(dir, watch, debounce), dir, read, enc, watch }, // information about the directory to watch
 			[_transform]: transform, // the transform to run on all files
 			[_generators]: new Map(generators.map(generator => [Symbol(), generator])), // unique symbols -> registered generators
-			[_waiter]: new Waiter(), // Waiter instance, to help wait for all promises in the current wave to resolve
-			[_pending]: new Set(), // original paths of all files currently undergoing transformation and symbols of all generators running
-			[_waiting]: new Map(), // original paths -> number of other files they're currently waiting on to exist
-			[_available]: new Map(), // original paths -> { promise, resolve } objects for when awaited files become available
-			[_root]: null, // (via proxy) the root dependent, for use in _dependents
-			[_dependent]: null, // (via proxy) the immediate dependent, for use in _waiting
-			[_dependents]: new Map(), // original paths of dependents -> set of original paths of dependencies, specifying changes to which files should trigger re-processing which other files
+			[_active]: new Set(), // original paths of all files currently undergoing transformation and symbols of all generators currently running
+			[_waitingFor]: new Map(), // original paths -> number of other files they're currently waiting on to exist
+			[_whenFound]: new Map(), // original paths -> { promise, resolve } objects for when awaited files become available
+			[_cur]: { root: null, dep: null }, // (set via proxy) root: the current root dependent, for use in _dependencies; dep: the current immediate dependent, for use in _waitingFor
+			[_dependencies]: new Map(), // original paths of dependents -> set of original paths of dependencies, specifying changes to which files should trigger re-processing which other files
 			[_queue]: [], // queue of pending Watcher events to handle
-			[_processing]: false, // whether some Watcher event is currently already in the process of being handled
+			[_isProcessing]: false, // whether some Watcher event is currently already in the process of being handled
 		})
 	}
 
@@ -82,26 +57,26 @@ export default class Defiler extends EventEmitter {
 	async exec() {
 		if (this[_status] !== null) throw new Error('defiler.exec: cannot call more than once')
 		this[_status] = false
-		this[_processing] = true
-		let done = this[_waiter].init()
+		this[_isProcessing] = true
+		let done = this[_startWave]()
 		// init the Watcher instance
-		let { watcher, watch } = this[_dir]
+		let { watcher, watch } = this[_watcher]
 		if (watch) watcher.on('', event => this[_enqueue](event))
 		let files = await watcher.init()
 		// note that all files are pending transformation
 		for (let { path } of files) {
 			this.paths.add(path)
-			this[_pending].add(path)
+			this[_active].add(path)
 		}
-		for (let symbol of this[_generators].keys()) this[_pending].add(symbol)
+		for (let symbol of this[_generators].keys()) this[_active].add(symbol)
 		// process each physical file
-		for (let { path, stats } of files) this[_waiter].add(this[_processPhysicalFile](path, stats))
+		for (let { path, stats } of files) this[_processPhysicalFile](path, stats)
 		// process each generator
-		for (let symbol of this[_generators].keys()) this[_waiter].add(this[_processGenerator](symbol))
+		for (let symbol of this[_generators].keys()) this[_processGenerator](symbol)
 		// wait and finish up
 		await done
 		this[_status] = true
-		this[_processing] = false
+		this[_isProcessing] = false
 		this[_enqueue]()
 	}
 
@@ -114,28 +89,23 @@ export default class Defiler extends EventEmitter {
 			throw new TypeError('defiler.get: path must be a string or an array of strings')
 		}
 		if (Array.isArray(path)) return Promise.all(path.map(path => this.get(path)))
-		if (this[_root]) {
-			if (this[_dependents].has(this[_root])) {
-				this[_dependents].get(this[_root]).add(path)
-			} else {
-				this[_dependents].set(this[_root], new Set([path]))
-			}
+		let { [_cur]: cur, [_waitingFor]: waitingFor } = this
+		if (cur.root) {
+			this[_dependencies].has(cur.root)
+				? this[_dependencies].get(cur.root).add(path)
+				: this[_dependencies].set(cur.root, new Set([path]))
 		}
 		if (!this[_status] && !this.files.has(path)) {
-			if (this[_dependent]) {
-				this[_waiting].set(this[_dependent], (this[_waiting].get(this[_dependent]) || 0) + 1)
-			}
-			if (this[_available].has(path)) {
-				await this[_available].get(path).promise
+			if (cur.dep) waitingFor.set(cur.dep, (waitingFor.get(cur.dep) || 0) + 1)
+			if (this[_whenFound].has(path)) {
+				await this[_whenFound].get(path).promise
 			} else {
 				let resolve
 				let promise = new Promise(res => (resolve = res))
-				this[_available].set(path, { promise, resolve })
+				this[_whenFound].set(path, { promise, resolve })
 				await promise
 			}
-			if (this[_dependent]) {
-				this[_waiting].set(this[_dependent], this[_waiting].get(this[_dependent]) - 1)
-			}
+			if (cur.dep) waitingFor.set(cur.dep, waitingFor.get(cur.dep) - 1)
 		}
 		return this.files.get(path)
 	}
@@ -144,115 +114,117 @@ export default class Defiler extends EventEmitter {
 	add(file) {
 		if (this[_status] === null) throw new Error('defiler.add: cannot call before calling exec')
 		if (typeof file !== 'object') throw new TypeError('defiler.add: file must be an object')
-		if (!(file instanceof File)) file = Object.assign(new File(), file)
-		this[_waiter].add(this[_transformFile](file))
+		this[_processFile](file)
 	}
 
 	// private methods
 
+	// return a Promise that we will resolve at the end of this wave, and save its resolver
+	[_startWave]() {
+		return new Promise(res => (this[_endWave] = res))
+	}
+
 	// add a Watcher event to the queue, and handle queued events
 	async [_enqueue](event) {
 		if (event) this[_queue].push(event)
-		if (this[_processing]) return
-		this[_processing] = true
+		if (this[_isProcessing]) return
+		this[_isProcessing] = true
 		while (this[_queue].length) {
 			let { event, path, stats } = this[_queue].shift()
+			let done = this[_startWave]()
 			if (event === '+') {
-				let done = this[_waiter].init()
-				this[_waiter].add(this[_processPhysicalFile](path, stats))
-				await done
+				this[_processPhysicalFile](path, stats)
 			} else if (event === '-') {
 				let file = this.files.get(path)
 				this.paths.delete(path)
-				this[_origFiles].delete(path)
+				this[_origData].delete(path)
 				this.files.delete(path)
 				this.emit('deleted', { defiler: this, file })
 				this[_processDependents](path)
 			}
+			await done
 		}
-		this[_processing] = false
+		this[_isProcessing] = false
 	}
 
 	// create a file object for a physical file and process it
 	async [_processPhysicalFile](path, stats) {
-		let { dir, read, enc } = this[_dir]
+		let { dir, read, enc } = this[_watcher]
 		let data = { path, stats, enc }
 		if (read) data.bytes = await readFile(dir + '/' + path)
 		this.paths.add(path)
-		this[_origFiles].set(path, data)
+		this[_origData].set(path, data)
 		this.emit('read', { defiler: this, file: Object.assign(new File(), data) })
 		await this[_processFile](data)
 	}
 
 	// transform a file, store it, and process dependents
-	async [_processFile](data) {
-		await this[_transformFile](Object.assign(new File(), data))
-	}
-
-	// transform a file
-	async [_transformFile](file) {
+	async [_processFile](file) {
+		file = Object.assign(new File(), file)
 		let { path } = file
-		this[_pending].add(path)
+		this[_active].add(path)
 		try {
-			await this[_transform]({ defiler: this[_sub](path), file })
+			await this[_transform]({ defiler: this[_newProxy](path), file })
 		} catch (error) {
 			this.emit('error', { defiler: this, file, error })
 		}
 		this.files.set(path, file)
 		this.emit('file', { defiler: this, file })
-		this[_found](path)
+		this[_markFound](path)
 		this[_processDependents](path)
-		this[_pending].delete(path)
-		if (!this[_status] && [...this[_pending]].every(path => this[_waiting].get(path))) {
+		this[_active].delete(path)
+		if (!this[_active].size) {
+			this[_endWave]()
+		} else if (!this[_status] && [...this[_active]].every(path => this[_waitingFor].get(path))) {
 			// all pending files are currently waiting for one or more other files to exist
 			// break deadlock: assume all files that have not appeared yet will never do so
-			for (let path of this[_available].keys()) if (!this[_pending].has(path)) this[_found](path)
+			for (let path of this[_whenFound].keys()) if (!this[_active].has(path)) this[_markFound](path)
 		}
-	}
-
-	// run the generator given by the symbol
-	async [_processGenerator](symbol) {
-		this[_pending].add(symbol)
-		let generator = this[_generators].get(symbol)
-		try {
-			await generator({ defiler: this[_sub](symbol) })
-		} catch (error) {
-			this.emit('error', { defiler: this, generator, error })
-		}
-		this[_pending].delete(symbol)
-	}
-
-	// create a sub-defiler proxy for the given path, always overriding _dependent and only overriding _root if it is not yet set
-	[_sub](path) {
-		return new Proxy(this, {
-			get: (_, key) => (key === _dependent || (key === _root && !this[_root]) ? path : this[key]),
-		})
 	}
 
 	// re-process all files that depend on a particular path
 	[_processDependents](path) {
 		if (!this[_status]) return
 		let dependents = new Set()
-		for (let [dependent, dependencies] of this[_dependents].entries()) {
+		for (let [dependent, dependencies] of this[_dependencies].entries()) {
 			if (dependencies.has(path)) {
 				dependents.add(dependent)
-				this[_dependents].delete(dependent)
+				this[_dependencies].delete(dependent)
 			}
 		}
+		if (!dependents.size && !this[_active].size) this[_endWave]()
 		for (let dependent of dependents) {
-			if (this[_origFiles].has(dependent)) {
-				this[_processFile](this[_origFiles].get(dependent))
+			if (this[_origData].has(dependent)) {
+				this[_processFile](this[_origData].get(dependent))
 			} else if (this[_generators].has(dependent)) {
 				this[_processGenerator](dependent)
 			}
 		}
 	}
 
+	// run the generator given by the symbol
+	async [_processGenerator](symbol) {
+		this[_active].add(symbol)
+		let generator = this[_generators].get(symbol)
+		try {
+			await generator({ defiler: this[_newProxy](symbol) })
+		} catch (error) {
+			this.emit('error', { defiler: this, generator, error })
+		}
+		this[_active].delete(symbol)
+	}
+
+	// create a defiler Proxy for the given path, always overriding _cur.dep and only overriding _cur.root if it is not yet set
+	[_newProxy](path) {
+		let cur = { root: this[_cur].root || path, dep: path }
+		return new Proxy(this, { get: (_, key) => (key === _cur ? cur : this[key]) })
+	}
+
 	// mark a given awaited file as being found
-	[_found](path) {
-		if (!this[_status] && this[_available].has(path)) {
-			this[_available].get(path).resolve()
-			this[_available].delete(path)
+	[_markFound](path) {
+		if (!this[_status] && this[_whenFound].has(path)) {
+			this[_whenFound].get(path).resolve()
+			this[_whenFound].delete(path)
 		}
 	}
 }

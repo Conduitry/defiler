@@ -3,19 +3,8 @@ import { stat, readdir } from './fs.js'
 import { watch } from 'fs'
 
 import symbols from './symbols.js'
-let {
-	_dir,
-	_watch,
-	_debounce,
-	_dirs,
-	_files,
-	_timeouts,
-	_queue,
-	_processing,
-	_recurse,
-	_handle,
-	_enqueue,
-} = symbols
+// prettier-ignore
+let { _dir, _watch, _debounce, _dirs, _files, _timeouts, _queue, _processing, _recurse, _handle, _enqueue } = symbols
 
 export default class Watcher extends EventEmitter {
 	constructor(dir, watch, debounce) {
