@@ -34,13 +34,12 @@ export default class Defiler extends EventEmitter {
 			throw new TypeError('defiler: generators must be an array of functions')
 		}
 		super()
-		dir = resolve(dir)
 		Object.assign(this, {
 			paths: new Set(), // set of original paths for all physical files
 			[_origData]: new Map(), // original paths -> original file data for all physical files ({ path, stats, bytes, enc })
 			files: new Map(), // original paths -> transformed files for all physical and virtual files
 			[_status]: null, // null = exec not called; false = exec pending; true = exec finished
-			[_watcher]: { watcher: new Watcher(dir, watch, debounce), dir, read, enc, watch }, // information about the directory to watch
+			[_watcher]: new Watcher({ dir: resolve(dir), read, enc, watch, debounce }), // Watcher instance
 			[_transform]: transform, // the transform to run on all files
 			[_generators]: new Map(generators.map(generator => [Symbol(), generator])), // unique symbols -> registered generators
 			[_active]: new Set(), // original paths of all files currently undergoing transformation and symbols of all generators currently running
@@ -60,9 +59,8 @@ export default class Defiler extends EventEmitter {
 		this[_isProcessing] = true
 		let done = this[_startWave]()
 		// init the Watcher instance
-		let { watcher, watch } = this[_watcher]
-		if (watch) watcher.on('', event => this[_enqueue](event))
-		let files = await watcher.init()
+		this[_watcher].on('', event => this[_enqueue](event))
+		let files = await this[_watcher].init()
 		// note that all files are pending transformation
 		for (let { path } of files) {
 			this.paths.add(path)
@@ -91,20 +89,16 @@ export default class Defiler extends EventEmitter {
 		if (Array.isArray(path)) return Promise.all(path.map(path => this.get(path)))
 		let { [_cur]: cur, [_waitingFor]: waitingFor } = this
 		if (cur.root) {
-			this[_dependencies].has(cur.root)
-				? this[_dependencies].get(cur.root).add(path)
-				: this[_dependencies].set(cur.root, new Set([path]))
+			if (!this[_dependencies].has(cur.root)) this[_dependencies].set(cur.root, new Set())
+			this[_dependencies].get(cur.root).add(path)
 		}
 		if (!this[_status] && !this.files.has(path)) {
 			if (cur.dep) waitingFor.set(cur.dep, (waitingFor.get(cur.dep) || 0) + 1)
-			if (this[_whenFound].has(path)) {
-				await this[_whenFound].get(path).promise
-			} else {
+			if (!this[_whenFound].has(path)) {
 				let resolve
-				let promise = new Promise(res => (resolve = res))
-				this[_whenFound].set(path, { promise, resolve })
-				await promise
+				this[_whenFound].set(path, { promise: new Promise(res => (resolve = res)), resolve })
 			}
+			await this[_whenFound].get(path).promise
 			if (cur.dep) waitingFor.set(cur.dep, waitingFor.get(cur.dep) - 1)
 		}
 		return this.files.get(path)
