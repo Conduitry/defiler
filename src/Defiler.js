@@ -7,7 +7,7 @@ import Watcher from './Watcher.js'
 
 import symbols from './symbols.js'
 // prettier-ignore
-let { _origData, _status, _watcher, _transform, _generators, _active, _waitingFor, _whenFound, _dependencies, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _cur, _newProxy, _processDependents, _markFound } = symbols
+let { _origData, _status, _watcher, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _dependencies, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _cur, _newProxy, _processDependents, _markFound } = symbols
 
 export default class Defiler extends EventEmitter {
 	constructor({
@@ -18,6 +18,7 @@ export default class Defiler extends EventEmitter {
 		debounce = 10,
 		transform,
 		generators = [],
+		resolver,
 	}) {
 		if (typeof dir !== 'string') throw new TypeError('defiler: dir must be a string')
 		if (typeof read !== 'boolean') throw new TypeError('defiler: read must be a boolean')
@@ -42,6 +43,7 @@ export default class Defiler extends EventEmitter {
 			[_watcher]: new Watcher({ dir: resolve(dir), read, enc, watch, debounce }), // Watcher instance
 			[_transform]: transform, // the transform to run on all files
 			[_generators]: new Map(generators.map(generator => [Symbol(), generator])), // unique symbols -> registered generators
+			[_resolver]: resolver, // (base, path) => path resolver function, used in defiler.get and defiler.add from transform
 			[_active]: new Set(), // original paths of all files currently undergoing transformation and symbols of all generators currently running
 			[_waitingFor]: new Map(), // original paths -> number of other files they're currently waiting on to exist
 			[_whenFound]: new Map(), // original paths -> { promise, resolve } objects for when awaited files become available
@@ -88,6 +90,9 @@ export default class Defiler extends EventEmitter {
 		}
 		if (Array.isArray(path)) return Promise.all(path.map(path => this.get(path)))
 		let { [_cur]: cur, [_waitingFor]: waitingFor } = this
+		if (this[_resolver] && typeof cur.dep === 'string') {
+			path = this[_resolver](cur.dep, path)
+		}
 		if (cur.root) {
 			if (!this[_dependencies].has(cur.root)) this[_dependencies].set(cur.root, new Set())
 			this[_dependencies].get(cur.root).add(path)
@@ -108,6 +113,9 @@ export default class Defiler extends EventEmitter {
 	add(file) {
 		if (this[_status] === null) throw new Error('defiler.add: cannot call before calling exec')
 		if (typeof file !== 'object') throw new TypeError('defiler.add: file must be an object')
+		if (this[_resolver] && typeof this[_cur].dep === 'string') {
+			file.path = this[_resolver](this[_cur].dep, file.path)
+		}
 		this[_processFile](file)
 	}
 

@@ -72,6 +72,8 @@ A new `Defiler` instance to represent a collection of physical files and virtual
 	- `transform({ defiler, file })` - a transform function, which is passed an object containing the `Defiler` instance and the `File` instance to mutate. The transform function can return a `Promise` to indicate when it's done
 - Generator configuration
 	- `generators` - _(optional)_ an array of generator functions, each of the form `generator({ defiler })`. Each generator is passed an object containing the `Defiler` instance. Each generator function can return a `Promise` to indicate when it's done
+- Resolver configuration
+	- `resolver(base, path)` - _(optional)_ a function that will be used to resolve the paths passed to `defiler.get` and `defiler.add` from the transform. This will be passed two arguments, `base` (the path of the file being transformed) and `path` (the path passed to `defiler.get`/`defiler.add`), and should return the resolved (original) path to look up
 
 ## Properties
 
