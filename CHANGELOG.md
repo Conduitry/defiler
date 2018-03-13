@@ -1,3 +1,7 @@
+# v0.13.5
+
+- Support custom `resolver` option to `Defiler` to resolve paths passed to `defiler.get` and `defiler.add` from the transform
+
 # v0.13.4
 
 - Also wait for changes to settle if this wave was triggered by a file deletion
