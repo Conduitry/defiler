@@ -18,10 +18,6 @@ A new `File` instance to serve as the representation of a physical file, a virtu
 
 The relative path to the file, from some understood root. The path is always separated by forward slashes, regardless of platform. Updating `dir`, `filename`, or `ext` also updates this.
 
-### `paths`
-
-An array of all `path`s this file has had, in chronological order. Automatically updated by setting `path`, `dir`, `filename`, and `ext`.
-
 ### `dir`
 
 The directory (not including the trailing slash) containing the file.

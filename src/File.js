@@ -8,7 +8,6 @@ export default class File {
 			[_dir]: null, //cached dir
 			[_filename]: null, // cached filename
 			[_ext]: null, // cached ext
-			paths: [], // all historical paths of file
 			stats: null, // stats of file
 			[_enc]: 'utf8', // encoding
 			[_bytes]: null, // Buffer of file contents
@@ -25,7 +24,6 @@ export default class File {
 		if (this[_path] !== path) {
 			this[_path] = path
 			this[_dir] = this[_filename] = this[_ext] = null
-			this.paths.push(path)
 		}
 	}
 
