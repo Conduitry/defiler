@@ -34,6 +34,9 @@ export default class Defiler extends EventEmitter {
 		) {
 			throw new TypeError('defiler: generators must be an array of functions')
 		}
+		if (typeof resolver !== 'undefined' && typeof resolver !== 'function') {
+			throw new TypeError('defiler: resolver must be a function')
+		}
 		super()
 		Object.assign(this, {
 			paths: new Set(), // set of original paths for all physical files
