@@ -168,10 +168,11 @@ export default class Defiler extends EventEmitter {
 		file = Object.assign(new File(), file)
 		let { path } = file
 		this[_active].add(path)
+		let defiler = this[_newProxy](path)
 		try {
-			await this[_transform]({ defiler: this[_newProxy](path), file })
+			await this[_transform]({ defiler, file })
 		} catch (error) {
-			this.emit('error', { defiler: this, file, error })
+			this.emit('error', { defiler, file, error })
 		}
 		this.files.set(path, file)
 		this.emit('file', { defiler: this, file })
@@ -211,10 +212,11 @@ export default class Defiler extends EventEmitter {
 	async [_processGenerator](symbol) {
 		this[_active].add(symbol)
 		let generator = this[_generators].get(symbol)
+		let defiler = this[_newProxy](symbol)
 		try {
-			await generator({ defiler: this[_newProxy](symbol) })
+			await generator({ defiler })
 		} catch (error) {
-			this.emit('error', { defiler: this, generator, error })
+			this.emit('error', { defiler, generator, error })
 		}
 		this[_active].delete(symbol)
 	}
