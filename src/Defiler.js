@@ -83,17 +83,10 @@ export default class Defiler extends EventEmitter {
 
 	// wait for a file to be available and retrieve it, marking dependencies as appropriate
 	async get(path) {
-		if (
-			typeof path !== 'string' &&
-			(!Array.isArray(path) || path.some(path => typeof path !== 'string'))
-		) {
-			throw new TypeError('defiler.get: path must be a string or an array of strings')
-		}
 		if (Array.isArray(path)) return Promise.all(path.map(path => this.get(path)))
 		let { [_cur]: cur, [_waitingFor]: waitingFor } = this
-		if (this[_resolver] && typeof cur.parent === 'string') {
-			path = this[_resolver](cur.parent, path)
-		}
+		if (this[_resolver] && typeof cur.parent === 'string') path = this[_resolver](cur.parent, path)
+		if (typeof path !== 'string') throw new TypeError('defiler.get: path must be a string')
 		if (cur.root) this[_deps].push([cur.root, path])
 		if (!this[_status] && !this.files.has(path)) {
 			if (cur.parent) waitingFor.set(cur.parent, (waitingFor.get(cur.parent) || 0) + 1)
