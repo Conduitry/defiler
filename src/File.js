@@ -3,16 +3,14 @@ let { _path, _dir, _filename, _ext, _enc, _bytes, _text } = symbols
 
 export default class File {
 	constructor() {
-		Object.assign(this, {
-			[_path]: null, // path of file
-			[_dir]: null, //cached dir
-			[_filename]: null, // cached filename
-			[_ext]: null, // cached ext
-			stats: null, // stats of file
-			[_enc]: 'utf8', // encoding
-			[_bytes]: null, // Buffer of file contents
-			[_text]: null, // string of file contents
-		})
+		this[_path] = null // path of file
+		this[_dir] = null // cached dir
+		this[_filename] = null // cached filename
+		this[_ext] = null // cached ext
+		this.stats = null // stats of file
+		this[_enc] = 'utf8' // encoding
+		this[_bytes] = null // Buffer of file contents
+		this[_text] = null // string of file contents
 	}
 
 	get path() {

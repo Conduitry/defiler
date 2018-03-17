@@ -8,13 +8,12 @@ let { _watchers, _stats, _timeouts, _queue, _isProcessing, _recurse, _handle, _e
 export default class Watcher extends EventEmitter {
 	constructor(data /* = { dir, watch, debounce } */) {
 		super()
-		Object.assign(this, data, {
-			[_watchers]: new Map(), // paths of all (recursive) directories -> FSWatcher instances
-			[_stats]: new Map(), // paths of all (recursive) files -> file stats
-			[_timeouts]: new Map(), // paths of (recursive) files with pending debounced events -> setTimeout timer ids
-			[_queue]: [], // queue of pending FSWatcher events to handle
-			[_isProcessing]: false, // whether some FSWatcher event is currently already in the process of being handled
-		})
+		Object.assign(this, data)
+		this[_watchers] = new Map() // paths of all directories -> FSWatcher instances
+		this[_stats] = new Map() // paths of all files -> file stats
+		this[_timeouts] = new Map() // paths of files with pending debounced events -> setTimeout timer ids
+		this[_queue] = [] // queue of pending FSWatcher events to handle
+		this[_isProcessing] = false // whether some FSWatcher event is currently already in the process of being handled
 	}
 
 	// recurse directroy, get stats, set up FSWatcher instances
@@ -67,9 +66,7 @@ export default class Watcher extends EventEmitter {
 					// note the new directory: start watching it, and report any files in it
 					await this[_recurse](full)
 					for (let [newPath, stats] of this[_stats].entries()) {
-						if (newPath.startsWith(path + '/')) {
-							this.emit('', { event: '+', path: newPath, stats })
-						}
+						if (newPath.startsWith(path + '/')) this.emit('', { event: '+', path: newPath, stats })
 					}
 				}
 			} catch (e) {

@@ -7,7 +7,7 @@ import Watcher from './Watcher.js'
 
 import symbols from './symbols.js'
 // prettier-ignore
-let { _origData, _status, _watcher, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _dependencies, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _cur, _newProxy, _processDependents, _markFound } = symbols
+let { _origData, _status, _watcher, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _deps, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _cur, _newProxy, _processDependents, _markFound } = symbols
 
 export default class Defiler extends EventEmitter {
 	constructor({
@@ -38,23 +38,21 @@ export default class Defiler extends EventEmitter {
 			throw new TypeError('defiler: resolver must be a function')
 		}
 		super()
-		Object.assign(this, {
-			paths: new Set(), // set of original paths for all physical files
-			[_origData]: new Map(), // original paths -> original file data for all physical files ({ path, stats, bytes, enc })
-			files: new Map(), // original paths -> transformed files for all physical and virtual files
-			[_status]: null, // null = exec not called; false = exec pending; true = exec finished
-			[_watcher]: new Watcher({ dir: resolve(dir), read, enc, watch, debounce }), // Watcher instance
-			[_transform]: transform, // the transform to run on all files
-			[_generators]: new Map(generators.map(generator => [Symbol(), generator])), // unique symbols -> registered generators
-			[_resolver]: resolver, // (base, path) => path resolver function, used in defiler.get and defiler.add from transform
-			[_active]: new Set(), // original paths of all files currently undergoing transformation and symbols of all generators currently running
-			[_waitingFor]: new Map(), // original paths -> number of other files they're currently waiting on to exist
-			[_whenFound]: new Map(), // original paths -> { promise, resolve } objects for when awaited files become available
-			[_cur]: { root: null, dep: null }, // (set via proxy) root: the current root dependent, for use in _dependencies; dep: the current immediate dependent, for use in _waitingFor
-			[_dependencies]: new Map(), // original paths of dependents -> set of original paths of dependencies, specifying changes to which files should trigger re-processing which other files
-			[_queue]: [], // queue of pending Watcher events to handle
-			[_isProcessing]: false, // whether some Watcher event is currently already in the process of being handled
-		})
+		this.paths = new Set() // set of original paths for all physical files
+		this[_origData] = new Map() // original paths -> original file data for all physical files ({ path, stats, bytes, enc })
+		this.files = new Map() // original paths -> transformed files for all physical and virtual files
+		this[_status] = null // null = exec not called; false = exec pending; true = exec finished
+		this[_watcher] = new Watcher({ dir: resolve(dir), read, enc, watch, debounce }) // Watcher instance
+		this[_transform] = transform // the transform to run on all files
+		this[_generators] = new Map(generators.map(generator => [Symbol(), generator])) // unique symbols -> registered generators
+		this[_resolver] = resolver // (base, path) => path resolver function, used in defiler.get and defiler.add from transform
+		this[_active] = new Set() // original paths of all files currently undergoing transformation and symbols of all generators currently running
+		this[_waitingFor] = new Map() // original paths -> number of other files they're currently waiting on to exist
+		this[_whenFound] = new Map() // original paths -> { promise, resolve } objects for when awaited files become available
+		this[_cur] = { root: null, parent: null } // (set via proxy) root: the current root dependent, for use in _deps; parent: the current immediate dependent, for use in _waitingFor and the resolver
+		this[_deps] = [] // array of [dependent, dependency] pairs, specifying changes to which files should trigger re-processing which other files
+		this[_queue] = [] // queue of pending Watcher events to handle
+		this[_isProcessing] = false // whether some Watcher event is currently already in the process of being handled
 	}
 
 	// execute everything, and return a promise that resolves when the first wave of processing is complete
@@ -93,31 +91,28 @@ export default class Defiler extends EventEmitter {
 		}
 		if (Array.isArray(path)) return Promise.all(path.map(path => this.get(path)))
 		let { [_cur]: cur, [_waitingFor]: waitingFor } = this
-		if (this[_resolver] && typeof cur.dep === 'string') {
-			path = this[_resolver](cur.dep, path)
+		if (this[_resolver] && typeof cur.parent === 'string') {
+			path = this[_resolver](cur.parent, path)
 		}
-		if (cur.root) {
-			if (!this[_dependencies].has(cur.root)) this[_dependencies].set(cur.root, new Set())
-			this[_dependencies].get(cur.root).add(path)
-		}
+		if (cur.root) this[_deps].push([cur.root, path])
 		if (!this[_status] && !this.files.has(path)) {
-			if (cur.dep) waitingFor.set(cur.dep, (waitingFor.get(cur.dep) || 0) + 1)
+			if (cur.parent) waitingFor.set(cur.parent, (waitingFor.get(cur.parent) || 0) + 1)
 			if (!this[_whenFound].has(path)) {
 				let resolve
 				this[_whenFound].set(path, { promise: new Promise(res => (resolve = res)), resolve })
 			}
 			await this[_whenFound].get(path).promise
-			if (cur.dep) waitingFor.set(cur.dep, waitingFor.get(cur.dep) - 1)
+			if (cur.parent) waitingFor.set(cur.parent, waitingFor.get(cur.parent) - 1)
 		}
 		return this.files.get(path)
 	}
 
-	// add a new non-physical file
+	// add a new virtual file
 	add(file) {
 		if (this[_status] === null) throw new Error('defiler.add: cannot call before calling exec')
 		if (typeof file !== 'object') throw new TypeError('defiler.add: file must be an object')
-		if (this[_resolver] && typeof this[_cur].dep === 'string') {
-			file.path = this[_resolver](this[_cur].dep, file.path)
+		if (this[_resolver] && typeof this[_cur].parent === 'string') {
+			file.path = this[_resolver](this[_cur].parent, file.path)
 		}
 		this[_processFile](file)
 	}
@@ -145,7 +140,7 @@ export default class Defiler extends EventEmitter {
 				this[_origData].delete(path)
 				this.files.delete(path)
 				this.emit('deleted', { defiler: this, file })
-				this[_processDependents](path)
+				if (this[_status]) this[_processDependents](path)
 			}
 			await done
 		}
@@ -164,8 +159,8 @@ export default class Defiler extends EventEmitter {
 	}
 
 	// transform a file, store it, and process dependents
-	async [_processFile](file) {
-		file = Object.assign(new File(), file)
+	async [_processFile](data) {
+		let file = Object.assign(new File(), data)
 		let { path } = file
 		this[_active].add(path)
 		let defiler = this[_newProxy](path)
@@ -177,7 +172,7 @@ export default class Defiler extends EventEmitter {
 		this.files.set(path, file)
 		this.emit('file', { defiler: this, file })
 		this[_markFound](path)
-		this[_processDependents](path)
+		if (this[_status]) this[_processDependents](path)
 		this[_active].delete(path)
 		if (!this[_active].size) {
 			this[_endWave]()
@@ -190,14 +185,8 @@ export default class Defiler extends EventEmitter {
 
 	// re-process all files that depend on a particular path
 	[_processDependents](path) {
-		if (!this[_status]) return
-		let dependents = new Set()
-		for (let [dependent, dependencies] of this[_dependencies].entries()) {
-			if (dependencies.has(path)) {
-				dependents.add(dependent)
-				this[_dependencies].delete(dependent)
-			}
-		}
+		let dependents = new Set(this[_deps].map(([dependent, dep]) => dep === path && dependent))
+		this[_deps] = this[_deps].filter(([dependent]) => !dependents.has(dependent))
 		if (!dependents.size && !this[_active].size) this[_endWave]()
 		for (let dependent of dependents) {
 			if (this[_origData].has(dependent)) {
@@ -221,9 +210,9 @@ export default class Defiler extends EventEmitter {
 		this[_active].delete(symbol)
 	}
 
-	// create a defiler Proxy for the given path, always overriding _cur.dep and only overriding _cur.root if it is not yet set
+	// create a defiler Proxy for the given path, always overriding _cur.parent and only overriding _cur.root if it is not yet set
 	[_newProxy](path) {
-		let cur = { root: this[_cur].root || path, dep: path }
+		let cur = { root: this[_cur].root || path, parent: path }
 		return new Proxy(this, { get: (_, key) => (key === _cur ? cur : this[key]) })
 	}
 
