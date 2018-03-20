@@ -83,7 +83,9 @@ export default class File {
 	}
 
 	set bytes(bytes) {
-		if (!Buffer.isBuffer(bytes)) throw new TypeError('file.bytes must be a Buffer')
+		if (bytes != null && !Buffer.isBuffer(bytes)) {
+			throw new TypeError('file.bytes must be a Buffer or null')
+		}
 		this[_bytes] = bytes
 		this[_text] = null
 	}
@@ -95,7 +97,9 @@ export default class File {
 	}
 
 	set text(text) {
-		if (typeof text !== 'string') throw new TypeError('file.text must be a string')
+		if (text != null && typeof text !== 'string') {
+			throw new TypeError('file.text must be a string or null')
+		}
 		this[_text] = text
 		this[_bytes] = null
 	}
