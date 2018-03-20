@@ -25,8 +25,12 @@ export default class Defiler extends EventEmitter {
 		if (typeof filter !== 'undefined' && typeof filter !== 'function') {
 			throw new TypeError('defiler: filter must be a function')
 		}
-		if (typeof read !== 'boolean') throw new TypeError('defiler: read must be a boolean')
-		if (!Buffer.isEncoding(enc)) throw new TypeError('defiler: enc must be a supported encoding')
+		if (typeof read !== 'boolean' && typeof read !== 'function') {
+			throw new TypeError('defiler: read must be a boolean or a function')
+		}
+		if (!Buffer.isEncoding(enc) && typeof enc !== 'function') {
+			throw new TypeError('defiler: enc must be a supported encoding or a function')
+		}
 		if (typeof watch !== 'boolean') throw new TypeError('defiler: watch must be a boolean')
 		if (typeof debounce !== 'number') throw new TypeError('defiler: debounce must be a number')
 		if (typeof transform !== 'function') {
@@ -147,8 +151,11 @@ export default class Defiler extends EventEmitter {
 	// create a file object for a physical file and process it
 	async [_processPhysicalFile](path, stats) {
 		let { dir, read, enc } = this[_watcher]
-		let data = { path, stats, enc }
-		if (read) data.bytes = await readFile(dir + '/' + path)
+		let data = { path, stats }
+		if (read && (typeof read !== 'function' || (await read({ path, stats })))) {
+			data.bytes = await readFile(dir + '/' + path)
+		}
+		data.enc = typeof enc === 'function' ? await enc({ path, stats, bytes: data.bytes }) : enc
 		this.paths.add(path)
 		this[_origData].set(path, data)
 		this.emit('read', { defiler: this, file: Object.assign(new File(), data) })
