@@ -54,22 +54,25 @@ The assumed encoding for the file. Defaults to `'utf8'`. Must be one of Node.js'
 
 ## Constructor
 
-### `new Defiler({ dir, read = true, enc = 'utf8', watch = true, debounce = 10, transform, generators = [] })`
+### `new Defiler({ dir, filter, read = true, enc = 'utf8', watch = true, debounce = 10, transform, generators = [] })`
 
 A new `Defiler` instance to represent a collection of physical files and virtual files, a transform to run on them, and additional generators.
 
-- Directory configuration
+- Input configuration
 	- `dir` - the directory to watch
+		- `filter({ path, stats })` - _(optional)_ a function to decide whether a given file or directory should be considered by Defiler. It's passed an object containing the file or directory's relative `path` and its `stats`. It should return `true` or `false` (or a `Promise` resolving to one of those). Returning `false` for a directory means that none of its contents will be included. You can use `stats.isFile()` and `stats.isDirectory()` to determine whether this is a file or a directory
 	- `read` - _(optional)_ whether to actually read in the contents of the files in the directory. Defaults to `true`. If `false`, the files will still be run through the transform, but they will have null `bytes` and `text`
-	- `enc` - _(optional)_ encoding to use for files read in from the directory. Defaults to `'utf8'`. This can also be changed for individual files (see [`file.enc`](#enc))
+		- Can also be a function `read({ path, stats })`, which should return `true` or `false` (or a `Promise` resolving to one of those), allowing whether each file is read in to be decided individually
+	- `enc` - _(optional)_ encoding to use for files read in from the directory. Defaults to `'utf8'`
+		- Can also be a function `enc({ path, stats, bytes })`, which should return an encoding name (or a `Promise` resolving to one), allowing the encoding on each file to be decided individually
 	- `watch` - _(optional)_ whether to actually watch the directory for changes. Defaults to `true`. If `false`, the files will still be run through the transform, but any changes to them will not be
-	- `debounce` - _(optional)_ The length of the timeout in milliseconds to use to debounce incoming events from `fs.watch`. Defaults to 10. Multiple events are often emitted for a single change, and events can also be emitted before `fs.stat` reports the changes. Defiler will wait until `debounce` milliseconds have passed since the last `fs.watch` event for a file before handling it. The default of 10ms Works On My Machine
+		- `debounce` - _(optional)_ length of timeout in milliseconds to use to debounce incoming events from `fs.watch`. Defaults to 10. Multiple events are often emitted for a single change, and events can also be emitted before `fs.stat` reports the changes. Defiler will wait until `debounce` milliseconds have passed since the last `fs.watch` event for a file before handling it. The default of 10ms Works On My Machine
 - Transform configuration
 	- `transform({ defiler, file })` - a transform function, which is passed an object containing the `Defiler` instance and the `File` instance to mutate. The transform function can return a `Promise` to indicate when it's done
 - Generator configuration
 	- `generators` - _(optional)_ an array of generator functions, each of the form `generator({ defiler })`. Each generator is passed an object containing the `Defiler` instance. Each generator function can return a `Promise` to indicate when it's done
 - Resolver configuration
-	- `resolver(base, path)` - _(optional)_ a function that will be used to resolve the paths passed to `defiler.get` and `defiler.add` from the transform. This will be passed two arguments, `base` (the path of the file being transformed) and `path` (the path passed to `defiler.get`/`defiler.add`), and should return the resolved (original) path to look up
+	- `resolver(base, path)` - _(optional)_ a function that will be used to resolve the paths passed to `defiler.get` and `defiler.add` from the transform. This will be passed two arguments, `base` (the path of the file being transformed) and `path` (the path passed to `defiler.get`/`defiler.add`), and should return the resolved path to use
 
 ## Properties
 

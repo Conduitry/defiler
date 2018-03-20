@@ -12,7 +12,7 @@
 
 # v0.13.2
 
-- If a file change event comes in during the first wave of processing, don't wait for another event after the first wave to trigger the second wave, and instead start it immediately upon finishing the first.
+- If a file change event comes in during the first wave of processing, don't wait for another event after the first wave to trigger the second wave, and instead start it immediately upon finishing the first
 
 # v0.13.1
 

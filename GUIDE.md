@@ -54,7 +54,7 @@ First, [create a new `Defiler` instance](API.md#defiler), initializing it with t
 
 Then, call its [`exec()` method](API.md#exec) to set everything in motion. This returns a `Promise` that will resolve when the initial wave of processing has completed.
 
-Useful things available on the `Defiler` instance for you to use in the transform or the generators are:
+Useful things available on the `Defiler` instance for you to use in the transform, in the generators, or elsewhere are:
 
 - [`defiler.paths`](API.md#paths) - a `Set` of the paths of all of the physical files
 - [`defiler.files`](API.md#files) - a `Map` of original paths to the transformed `File` instances
