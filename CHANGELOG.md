@@ -1,3 +1,9 @@
+# v0.14.0
+
+- Allow per-file and per-directory filtering of which files to consider
+- Allow `read` and `enc` settings to be determined per file
+- Remove `file.paths`
+
 # v0.13.5
 
 - Support custom `resolver` option to `Defiler` to resolve paths passed to `defiler.get` and `defiler.add` from the transform
