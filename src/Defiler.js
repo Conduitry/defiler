@@ -12,6 +12,7 @@ let { _origData, _status, _watcher, _transform, _generators, _resolver, _active,
 export default class Defiler extends EventEmitter {
 	constructor({
 		dir,
+		filter,
 		read = true,
 		enc = 'utf8',
 		watch = true,
@@ -21,6 +22,9 @@ export default class Defiler extends EventEmitter {
 		resolver,
 	}) {
 		if (typeof dir !== 'string') throw new TypeError('defiler: dir must be a string')
+		if (typeof filter !== 'undefined' && typeof filter !== 'function') {
+			throw new TypeError('defiler: filter must be a function')
+		}
 		if (typeof read !== 'boolean') throw new TypeError('defiler: read must be a boolean')
 		if (!Buffer.isEncoding(enc)) throw new TypeError('defiler: enc must be a supported encoding')
 		if (typeof watch !== 'boolean') throw new TypeError('defiler: watch must be a boolean')
@@ -42,7 +46,7 @@ export default class Defiler extends EventEmitter {
 		this[_origData] = new Map() // original paths -> original file data for all physical files ({ path, stats, bytes, enc })
 		this.files = new Map() // original paths -> transformed files for all physical and virtual files
 		this[_status] = null // null = exec not called; false = exec pending; true = exec finished
-		this[_watcher] = new Watcher({ dir: resolve(dir), read, enc, watch, debounce }) // Watcher instance
+		this[_watcher] = new Watcher({ dir: resolve(dir), filter, read, enc, watch, debounce }) // Watcher instance
 		this[_transform] = transform // the transform to run on all files
 		this[_generators] = new Map(generators.map(generator => [Symbol(), generator])) // unique symbols -> registered generators
 		this[_resolver] = resolver // (base, path) => path resolver function, used in defiler.get and defiler.add from transform

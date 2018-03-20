@@ -6,7 +6,7 @@ import symbols from './symbols.js'
 let { _watchers, _stats, _timeouts, _queue, _isProcessing, _recurse, _handle, _enqueue } = symbols
 
 export default class Watcher extends EventEmitter {
-	constructor(data /* = { dir, watch, debounce } */) {
+	constructor(data /* = { dir, filter, watch, debounce } */) {
 		super()
 		Object.assign(this, data)
 		this[_watchers] = new Map() // paths of all directories -> FSWatcher instances
@@ -27,6 +27,7 @@ export default class Watcher extends EventEmitter {
 	async [_recurse](full) {
 		let path = full.slice(this.dir.length + 1)
 		let stats = await stat(full)
+		if (this.filter && !await this.filter({ path, stats })) return
 		if (stats.isFile()) {
 			this[_stats].set(path, stats)
 		} else if (stats.isDirectory()) {
@@ -58,6 +59,7 @@ export default class Watcher extends EventEmitter {
 			let path = full.slice(this.dir.length + 1)
 			try {
 				let stats = await stat(full)
+				if (this.filter && !await this.filter({ path, stats })) continue
 				if (stats.isFile()) {
 					// note the new/changed file
 					this[_stats].set(path, stats)
