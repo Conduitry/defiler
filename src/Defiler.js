@@ -7,7 +7,7 @@ import Watcher from './Watcher.js'
 
 import symbols from './symbols.js'
 // prettier-ignore
-let { _origData, _status, _watcher, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _deps, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _cur, _newProxy, _processDependents, _markFound } = symbols
+let { _origData, _status, _watcher, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _deps, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _checkWave, _cur, _newProxy, _processDependents, _markFound } = symbols
 
 export default class Defiler extends EventEmitter {
 	constructor({
@@ -178,13 +178,7 @@ export default class Defiler extends EventEmitter {
 		this[_markFound](path)
 		if (this[_status]) this[_processDependents](path)
 		this[_active].delete(path)
-		if (!this[_active].size) {
-			this[_endWave]()
-		} else if (!this[_status] && [...this[_active]].every(path => this[_waitingFor].get(path))) {
-			// all pending files are currently waiting for one or more other files to exist
-			// break deadlock: assume all files that have not appeared yet will never do so
-			for (let path of this[_whenFound].keys()) if (!this[_active].has(path)) this[_markFound](path)
-		}
+		this[_checkWave]()
 	}
 
 	// re-process all files that depend on a particular path
@@ -212,6 +206,18 @@ export default class Defiler extends EventEmitter {
 			this.emit('error', { defiler, generator, error })
 		}
 		this[_active].delete(symbol)
+		this[_checkWave]()
+	}
+
+	// check whether this wave is complete, and, if not, whether we need to break a deadlock
+	[_checkWave]() {
+		if (!this[_active].size) {
+			this[_endWave]()
+		} else if (!this[_status] && [...this[_active]].every(path => this[_waitingFor].get(path))) {
+			// all pending files are currently waiting for one or more other files to exist
+			// break deadlock: assume all files that have not appeared yet will never do so
+			for (let path of this[_whenFound].keys()) if (!this[_active].has(path)) this[_markFound](path)
+		}
 	}
 
 	// create a defiler Proxy for the given path, always overriding _cur.parent and only overriding _cur.root if it is not yet set
