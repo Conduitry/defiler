@@ -1,3 +1,7 @@
+# v0.14.1
+
+- Fix a race condition that can occur when generators finish after transforms in a given wave
+
 # v0.14.0
 
 - Allow per-file and per-directory filtering of which files to consider
