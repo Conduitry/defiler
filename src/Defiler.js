@@ -183,7 +183,8 @@ export default class Defiler extends EventEmitter {
 
 	// re-process all files that depend on a particular path
 	[_processDependents](path) {
-		let dependents = new Set(this[_deps].map(([dependent, dep]) => dep === path && dependent))
+		let dependents = new Set()
+		for (let [dependent, dep] of this[_deps]) if (dep === path) dependents.add(dependent)
 		this[_deps] = this[_deps].filter(([dependent]) => !dependents.has(dependent))
 		if (!dependents.size && !this[_active].size) this[_endWave]()
 		for (let dependent of dependents) {
