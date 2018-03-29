@@ -1,3 +1,7 @@
+# v0.15.1
+
+- Fix dependency tracking
+
 # v0.15.0
 
 - Allow multiple directories per Defiler instance, with per-directory `pre`-processing
