@@ -7,32 +7,11 @@ import Watcher from './Watcher.js'
 
 import symbols from './symbols.js'
 // prettier-ignore
-let { _origData, _status, _watcher, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _deps, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _checkWave, _cur, _newProxy, _processDependents, _markFound } = symbols
+let { _origData, _status, _watchers, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _deps, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _checkWave, _cur, _newProxy, _processDependents, _markFound } = symbols
 
 export default class Defiler extends EventEmitter {
-	constructor({
-		dir,
-		filter,
-		read = true,
-		enc = 'utf8',
-		watch = true,
-		debounce = 10,
-		transform,
-		generators = [],
-		resolver,
-	}) {
-		if (typeof dir !== 'string') throw new TypeError('defiler: dir must be a string')
-		if (typeof filter !== 'undefined' && typeof filter !== 'function') {
-			throw new TypeError('defiler: filter must be a function')
-		}
-		if (typeof read !== 'boolean' && typeof read !== 'function') {
-			throw new TypeError('defiler: read must be a boolean or a function')
-		}
-		if (!Buffer.isEncoding(enc) && typeof enc !== 'function') {
-			throw new TypeError('defiler: enc must be a supported encoding or a function')
-		}
-		if (typeof watch !== 'boolean') throw new TypeError('defiler: watch must be a boolean')
-		if (typeof debounce !== 'number') throw new TypeError('defiler: debounce must be a number')
+	constructor(...dirs) {
+		let { transform, generators = [], resolver } = dirs.pop()
 		if (typeof transform !== 'function') {
 			throw new TypeError('defiler: transform must be a function')
 		}
@@ -50,7 +29,26 @@ export default class Defiler extends EventEmitter {
 		this[_origData] = new Map() // original paths -> original file data for all physical files ({ path, stats, bytes, enc })
 		this.files = new Map() // original paths -> transformed files for all physical and virtual files
 		this[_status] = null // null = exec not called; false = exec pending; true = exec finished
-		this[_watcher] = new Watcher({ dir: resolve(dir), filter, read, enc, watch, debounce }) // Watcher instance
+		this[_watchers] = dirs.map(
+			({ dir, filter, read = true, enc = 'utf8', pre, watch = true, debounce = 10 }) => {
+				if (typeof dir !== 'string') throw new TypeError('defiler: dir must be a string')
+				if (typeof filter !== 'undefined' && typeof filter !== 'function') {
+					throw new TypeError('defiler: filter must be a function')
+				}
+				if (typeof read !== 'boolean' && typeof read !== 'function') {
+					throw new TypeError('defiler: read must be a boolean or a function')
+				}
+				if (!Buffer.isEncoding(enc) && typeof enc !== 'function') {
+					throw new TypeError('defiler: enc must be a supported encoding or a function')
+				}
+				if (typeof pre !== 'undefined' && typeof pre !== 'function') {
+					throw new TypeError('defiler: pre must be a function')
+				}
+				if (typeof watch !== 'boolean') throw new TypeError('defiler: watch must be a boolean')
+				if (typeof debounce !== 'number') throw new TypeError('defiler: debounce must be a number')
+				return new Watcher({ dir: resolve(dir), filter, read, enc, pre, watch, debounce })
+			},
+		) // Watcher instances
 		this[_transform] = transform // the transform to run on all files
 		this[_generators] = new Map(generators.map(generator => [Symbol(), generator])) // unique symbols -> registered generators
 		this[_resolver] = resolver // (base, path) => path resolver function, used in defiler.get and defiler.add from transform
@@ -69,17 +67,26 @@ export default class Defiler extends EventEmitter {
 		this[_status] = false
 		this[_isProcessing] = true
 		let done = this[_startWave]()
-		// init the Watcher instance
-		this[_watcher].on('', event => this[_enqueue](event))
-		let files = await this[_watcher].init()
-		// note that all files are pending transformation
-		for (let { path } of files) {
-			this.paths.add(path)
-			this[_active].add(path)
-		}
+		// init the Watcher instances
+		let files = []
+		await Promise.all(
+			this[_watchers].map(async watcher => {
+				watcher.on('', event => this[_enqueue](watcher, event))
+				// note that all files are pending transformation
+				await Promise.all(
+					(await watcher.init()).map(async file => {
+						let { path } = file
+						if (watcher.pre) await watcher.pre(file)
+						this.paths.add(file.path)
+						this[_active].add(file.path)
+						files.push([watcher, path, file])
+					}),
+				)
+			}),
+		)
 		for (let symbol of this[_generators].keys()) this[_active].add(symbol)
 		// process each physical file
-		for (let { path, stats } of files) this[_processPhysicalFile](path, stats)
+		for (let [watcher, path, file] of files) this[_processPhysicalFile](watcher, path, file)
 		// process each generator
 		for (let symbol of this[_generators].keys()) this[_processGenerator](symbol)
 		// wait and finish up
@@ -126,22 +133,24 @@ export default class Defiler extends EventEmitter {
 	}
 
 	// add a Watcher event to the queue, and handle queued events
-	async [_enqueue](event) {
-		if (event) this[_queue].push(event)
+	async [_enqueue](watcher, event) {
+		if (event) this[_queue].push([watcher, event])
 		if (this[_isProcessing]) return
 		this[_isProcessing] = true
 		while (this[_queue].length) {
-			let { event, path, stats } = this[_queue].shift()
 			let done = this[_startWave]()
-			if (event === '+') {
-				this[_processPhysicalFile](path, stats)
-			} else if (event === '-') {
-				let file = this.files.get(path)
+			let [watcher, { event, path, stats }] = this[_queue].shift()
+			let file = { path, stats }
+			if (watcher.pre) await watcher.pre(file)
+			if (event === '+') this[_processPhysicalFile](watcher, path, file)
+			else if (event === '-') {
+				let { path } = file
+				file = this.files.get(path)
 				this.paths.delete(path)
 				this[_origData].delete(path)
 				this.files.delete(path)
 				this.emit('deleted', { defiler: this, file })
-				if (this[_status]) this[_processDependents](path)
+				this[_processDependents](path)
 			}
 			await done
 		}
@@ -149,17 +158,15 @@ export default class Defiler extends EventEmitter {
 	}
 
 	// create a file object for a physical file and process it
-	async [_processPhysicalFile](path, stats) {
-		let { dir, read, enc } = this[_watcher]
-		let data = { path, stats }
-		if (read && (typeof read !== 'function' || (await read({ path, stats })))) {
-			data.bytes = await readFile(dir + '/' + path)
-		}
-		data.enc = typeof enc === 'function' ? await enc({ path, stats, bytes: data.bytes }) : enc
-		this.paths.add(path)
-		this[_origData].set(path, data)
-		this.emit('read', { defiler: this, file: Object.assign(new File(), data) })
-		await this[_processFile](data)
+	async [_processPhysicalFile]({ dir, read, enc }, path, file) {
+		if (typeof read === 'function') read = await read({ path, stats: file.stats })
+		if (read) file.bytes = await readFile(dir + '/' + path)
+		if (typeof enc === 'function') enc = await enc({ path, stats: file.stats, bytes: file.bytes })
+		file.enc = enc
+		this.paths.add(file.path)
+		this[_origData].set(file.path, file)
+		this.emit('read', { defiler: this, file })
+		await this[_processFile](file)
 	}
 
 	// transform a file, store it, and process dependents
@@ -188,11 +195,8 @@ export default class Defiler extends EventEmitter {
 		this[_deps] = this[_deps].filter(([dependent]) => !dependents.has(dependent))
 		if (!dependents.size && !this[_active].size) this[_endWave]()
 		for (let dependent of dependents) {
-			if (this[_origData].has(dependent)) {
-				this[_processFile](this[_origData].get(dependent))
-			} else if (this[_generators].has(dependent)) {
-				this[_processGenerator](dependent)
-			}
+			if (this[_origData].has(dependent)) this[_processFile](this[_origData].get(dependent))
+			else if (this[_generators].has(dependent)) this[_processGenerator](dependent)
 		}
 	}
 
@@ -212,9 +216,8 @@ export default class Defiler extends EventEmitter {
 
 	// check whether this wave is complete, and, if not, whether we need to break a deadlock
 	[_checkWave]() {
-		if (!this[_active].size) {
-			this[_endWave]()
-		} else if (!this[_status] && [...this[_active]].every(path => this[_waitingFor].get(path))) {
+		if (!this[_active].size) this[_endWave]()
+		else if (!this[_status] && [...this[_active]].every(path => this[_waitingFor].get(path))) {
 			// all pending files are currently waiting for one or more other files to exist
 			// break deadlock: assume all files that have not appeared yet will never do so
 			for (let path of this[_whenFound].keys()) if (!this[_active].has(path)) this[_markFound](path)
