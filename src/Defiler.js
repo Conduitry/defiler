@@ -7,7 +7,7 @@ import Watcher from './Watcher.js'
 
 import symbols from './symbols.js'
 // prettier-ignore
-let { _origData, _status, _watchers, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _deps, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _checkWave, _cur, _newProxy, _processDependents, _markFound } = symbols
+let { _origData, _status, _watchers, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _deps, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _checkWave, _parent, _newProxy, _processDependents, _markFound } = symbols
 
 export default class Defiler extends EventEmitter {
 	constructor(...dirs) {
@@ -55,7 +55,7 @@ export default class Defiler extends EventEmitter {
 		this[_active] = new Set() // original paths of all files currently undergoing transformation and symbols of all generators currently running
 		this[_waitingFor] = new Map() // original paths -> number of other files they're currently waiting on to exist
 		this[_whenFound] = new Map() // original paths -> { promise, resolve } objects for when awaited files become available
-		this[_cur] = { root: null, parent: null } // (set via proxy) root: the current root dependent, for use in _deps; parent: the current immediate dependent, for use in _waitingFor and the resolver
+		this[_parent] = null // (set via proxy) the current immediate dependent (path or generator symbol), for use in _deps, _waitingFor, and the resolver
 		this[_deps] = [] // array of [dependent, dependency] pairs, specifying changes to which files should trigger re-processing which other files
 		this[_queue] = [] // queue of pending Watcher events to handle
 		this[_isProcessing] = false // whether some Watcher event is currently already in the process of being handled
@@ -99,18 +99,18 @@ export default class Defiler extends EventEmitter {
 	// wait for a file to be available and retrieve it, marking dependencies as appropriate
 	async get(path) {
 		if (Array.isArray(path)) return Promise.all(path.map(path => this.get(path)))
-		let { [_cur]: cur, [_waitingFor]: waitingFor } = this
-		if (this[_resolver] && typeof cur.parent === 'string') path = this[_resolver](cur.parent, path)
+		let { [_parent]: parent, [_waitingFor]: waitingFor } = this
+		if (this[_resolver] && typeof parent === 'string') path = this[_resolver](parent, path)
 		if (typeof path !== 'string') throw new TypeError('defiler.get: path must be a string')
-		if (cur.root) this[_deps].push([cur.root, path])
+		if (parent) this[_deps].push([parent, path])
 		if (!this[_status] && !this.files.has(path)) {
-			if (cur.parent) waitingFor.set(cur.parent, (waitingFor.get(cur.parent) || 0) + 1)
+			if (parent) waitingFor.set(parent, (waitingFor.get(parent) || 0) + 1)
 			if (!this[_whenFound].has(path)) {
 				let resolve
 				this[_whenFound].set(path, { promise: new Promise(res => (resolve = res)), resolve })
 			}
 			await this[_whenFound].get(path).promise
-			if (cur.parent) waitingFor.set(cur.parent, waitingFor.get(cur.parent) - 1)
+			if (parent) waitingFor.set(parent, waitingFor.get(parent) - 1)
 		}
 		return this.files.get(path)
 	}
@@ -119,8 +119,8 @@ export default class Defiler extends EventEmitter {
 	add(file) {
 		if (this[_status] === null) throw new Error('defiler.add: cannot call before calling exec')
 		if (typeof file !== 'object') throw new TypeError('defiler.add: file must be an object')
-		if (this[_resolver] && typeof this[_cur].parent === 'string') {
-			file.path = this[_resolver](this[_cur].parent, file.path)
+		if (this[_resolver] && typeof this[_parent] === 'string') {
+			file.path = this[_resolver](this[_parent], file.path)
 		}
 		this[_processFile](file)
 	}
@@ -224,10 +224,9 @@ export default class Defiler extends EventEmitter {
 		}
 	}
 
-	// create a defiler Proxy for the given path, always overriding _cur.parent and only overriding _cur.root if it is not yet set
+	// create a defiler Proxy for the given path or generator symbol
 	[_newProxy](path) {
-		let cur = { root: this[_cur].root || path, parent: path }
-		return new Proxy(this, { get: (_, key) => (key === _cur ? cur : this[key]) })
+		return new Proxy(this, { get: (_, key) => (key === _parent ? path : this[key]) })
 	}
 
 	// mark a given awaited file as being found
