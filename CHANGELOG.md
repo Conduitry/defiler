@@ -1,3 +1,8 @@
+# v0.15.0
+
+- Allow multiple directories per Defiler instance, with per-directory `pre`-processing
+- Other API tweaks, see docs
+
 # v0.14.2
 
 - Fix a regression which caused a wave to hang when a file was deleted or renamed
