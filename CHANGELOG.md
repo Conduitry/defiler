@@ -1,3 +1,7 @@
+# v0.14.2
+
+- Fix a regression which caused a wave to hang when a file was deleted or renamed
+
 # v0.14.1
 
 - Fix a race condition that can occur when generators finish after transforms in a given wave
