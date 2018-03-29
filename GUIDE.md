@@ -50,7 +50,7 @@ When performing production builds, you probably only want to have a first wave, 
 
 # Usage
 
-First, [create a new `Defiler` instance](API.md#defiler), initializing it with the directory to watch, the transform, and the generators.
+First, [create a new `Defiler` instance](API.md#defiler), initializing it with the directories to watch, the transform, and the generators.
 
 Then, call its [`exec()` method](API.md#exec) to set everything in motion. This returns a `Promise` that will resolve when the initial wave of processing has completed.
 

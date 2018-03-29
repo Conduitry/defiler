@@ -20,7 +20,7 @@ The relative path to the file, from some understood root. The path is always sep
 
 ### `dir`
 
-The directory (not including the trailing slash) containing the file.
+The directory (not including the trailing slash) containing the file. For top-level files, this is an empty string.
 
 ### `filename`
 
@@ -28,7 +28,7 @@ The filename (including the extension) of the file.
 
 ### `ext`
 
-The extension (including the preceding `.`) of the file.
+The extension (including the preceding `.`) of the file. For extension-less files, this is an empty string.
 
 ### `stats`
 
@@ -54,24 +54,23 @@ The assumed encoding for the file. Defaults to `'utf8'`. Must be one of Node.js'
 
 ## Constructor
 
-### `new Defiler({ dir, filter, read = true, enc = 'utf8', watch = true, debounce = 10, transform, generators = [] })`
+### `new Defiler({ dir, filter, read = true, enc = 'utf8', pre, watch = true, debounce = 10}, ..., { transform, generators, resolver })`
 
-A new `Defiler` instance to represent a collection of physical files and virtual files, a transform to run on them, and additional generators.
+A new `Defiler` instance to represent a collection of physical files and virtual files, a transform to run on them, and additional generators. This constructor should be passed multiple arguments; all but the last one should be 'input configuration' objects, and the last should be an object containing `transform` and (optionally) `generators` and/or `resolver`.
 
 - Input configuration
-	- `dir` - the directory to watch
+	- `dir` - a directory to watch
 		- `filter({ path, stats })` - _(optional)_ a function to decide whether a given file or directory should be considered by Defiler. It's passed an object containing the file or directory's relative `path` and its `stats`. It should return `true` or `false` (or a `Promise` resolving to one of those). Returning `false` for a directory means that none of its contents will be included. You can use `stats.isFile()` and `stats.isDirectory()` to determine whether this is a file or a directory
 	- `read` - _(optional)_ whether to actually read in the contents of the files in the directory. Defaults to `true`. If `false`, the files will still be run through the transform, but they will have null `bytes` and `text`
 		- Can also be a function `read({ path, stats })`, which should return `true` or `false` (or a `Promise` resolving to one of those), allowing whether each file is read in to be decided individually
 	- `enc` - _(optional)_ encoding to use for files read in from the directory. Defaults to `'utf8'`
 		- Can also be a function `enc({ path, stats, bytes })`, which should return an encoding name (or a `Promise` resolving to one), allowing the encoding on each file to be decided individually
+	- `pre(file)` - _(optional)_ a function to run some very basic pre-processing specific to this transform before the file continues on to the common transform. `file` is an object containing `path` and `stats`. You can change the `path` value (perhaps adding a prefix) and can also add further custom fields that will exist on the `file` when it is passed to the `transform`. (It is this potentially modified `path` that will be used in [`defiler.get`](#getpath).) This allows you to (among other things) determine which directory a file came from when transforming it. The pre-processing function can return a `Promise` to indicate when it's done
 	- `watch` - _(optional)_ whether to actually watch the directory for changes. Defaults to `true`. If `false`, the files will still be run through the transform, but any changes to them will not be
 		- `debounce` - _(optional)_ length of timeout in milliseconds to use to debounce incoming events from `fs.watch`. Defaults to 10. Multiple events are often emitted for a single change, and events can also be emitted before `fs.stat` reports the changes. Defiler will wait until `debounce` milliseconds have passed since the last `fs.watch` event for a file before handling it. The default of 10ms Works On My Machine
-- Transform configuration
+- Transform/generator/resolver configuration
 	- `transform({ defiler, file })` - a transform function, which is passed an object containing the `Defiler` instance and the `File` instance to mutate. The transform function can return a `Promise` to indicate when it's done
-- Generator configuration
 	- `generators` - _(optional)_ an array of generator functions, each of the form `generator({ defiler })`. Each generator is passed an object containing the `Defiler` instance. Each generator function can return a `Promise` to indicate when it's done
-- Resolver configuration
 	- `resolver(base, path)` - _(optional)_ a function that will be used to resolve the paths passed to `defiler.get` and `defiler.add` from the transform. This will be passed two arguments, `base` (the path of the file being transformed) and `path` (the path passed to `defiler.get`/`defiler.add`), and should return the resolved path to use
 
 ## Properties
@@ -108,9 +107,9 @@ When used in your transform, this will also register the file being transformed 
 
 Manually insert a virtual `File`, running it through the transform.
 
-- `file` - the `File` instance (or plain old JavaScript object) representing the virtual file to add
+- `file` - the `file` data of the virtual file to add
 
-For convenience, you can call this with a POJO, and a new `File` instance will be created for you with properties `Object.assign`ed from the object.
+The object does not need to be a `File` instance, and in fact there is no benefit to doing so. A new `File` instance is always created with properties `Object.assign`ed from `file`.
 
 ## Events
 
@@ -118,7 +117,7 @@ For convenience, you can call this with a POJO, and a new `File` instance will b
 
 ### `read({ defiler, file })`
 
-A `read` event is emitted when the original version of a physical file has been read in. It's emitted with an object containing the `Defiler` instance and the `File` instance.
+A `read` event is emitted when the original version of a physical file has been read in. It's emitted with an object containing the `Defiler` instance and the `file` data.
 
 ### `file({ defiler, file })`
 

@@ -15,7 +15,6 @@ Defiler is a build tool for people who find build tools interesting.
 
 - [guide](GUIDE.md#readme)
 - [api](API.md#readme)
-- [cookbook](COOKBOOK.md#readme)
 - [changelog](CHANGELOG.md#readme)
 - [homepage](https://cndtr.io/defiler/)
 
