@@ -7,7 +7,7 @@ import Watcher from './Watcher.js'
 
 import symbols from './symbols.js'
 // prettier-ignore
-let { _origData, _status, _watchers, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _deps, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _checkWave, _parent, _newProxy, _processDependents, _markFound } = symbols
+let { _origData, _status, _watchers, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _deps, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _checkWave, _dependent, _newProxy, _processDependents, _markFound } = symbols
 
 export default class Defiler extends EventEmitter {
 	constructor(...dirs) {
@@ -55,7 +55,7 @@ export default class Defiler extends EventEmitter {
 		this[_active] = new Set() // original paths of all files currently undergoing transformation and symbols of all generators currently running
 		this[_waitingFor] = new Map() // original paths -> number of other files they're currently waiting on to exist
 		this[_whenFound] = new Map() // original paths -> { promise, resolve } objects for when awaited files become available
-		this[_parent] = null // (set via proxy) the current immediate dependent (path or generator symbol), for use in _deps, _waitingFor, and the resolver
+		this[_dependent] = null // (set via proxy) the current immediate dependent (path or generator symbol), for use in _deps, _waitingFor, and the resolver
 		this[_deps] = [] // array of [dependent, dependency] pairs, specifying changes to which files should trigger re-processing which other files
 		this[_queue] = [] // queue of pending Watcher events to handle
 		this[_isProcessing] = false // whether some Watcher event is currently already in the process of being handled
@@ -99,7 +99,7 @@ export default class Defiler extends EventEmitter {
 	// wait for a file to be available and retrieve it, marking dependencies as appropriate
 	async get(path) {
 		if (Array.isArray(path)) return Promise.all(path.map(path => this.get(path)))
-		let { [_parent]: parent, [_waitingFor]: waitingFor } = this
+		let { [_dependent]: parent, [_waitingFor]: waitingFor } = this
 		if (this[_resolver] && typeof parent === 'string') path = this[_resolver](parent, path)
 		if (typeof path !== 'string') throw new TypeError('defiler.get: path must be a string')
 		if (parent) this[_deps].push([parent, path])
@@ -119,8 +119,8 @@ export default class Defiler extends EventEmitter {
 	add(file) {
 		if (this[_status] === null) throw new Error('defiler.add: cannot call before calling exec')
 		if (typeof file !== 'object') throw new TypeError('defiler.add: file must be an object')
-		if (this[_resolver] && typeof this[_parent] === 'string') {
-			file.path = this[_resolver](this[_parent], file.path)
+		if (this[_resolver] && typeof this[_dependent] === 'string') {
+			file.path = this[_resolver](this[_dependent], file.path)
 		}
 		this[_processFile](file)
 	}
@@ -188,18 +188,6 @@ export default class Defiler extends EventEmitter {
 		this[_checkWave]()
 	}
 
-	// re-process all files that depend on a particular path
-	[_processDependents](path) {
-		let dependents = new Set()
-		for (let [dependent, dep] of this[_deps]) if (dep === path) dependents.add(dependent)
-		this[_deps] = this[_deps].filter(([dependent]) => !dependents.has(dependent))
-		if (!dependents.size && !this[_active].size) this[_endWave]()
-		for (let dependent of dependents) {
-			if (this[_origData].has(dependent)) this[_processFile](this[_origData].get(dependent))
-			else if (this[_generators].has(dependent)) this[_processGenerator](dependent)
-		}
-	}
-
 	// run the generator given by the symbol
 	async [_processGenerator](symbol) {
 		this[_active].add(symbol)
@@ -214,6 +202,18 @@ export default class Defiler extends EventEmitter {
 		this[_checkWave]()
 	}
 
+	// re-process all files that depend on a particular path
+	[_processDependents](path) {
+		let dependents = new Set()
+		for (let [dependent, dep] of this[_deps]) if (dep === path) dependents.add(dependent)
+		this[_deps] = this[_deps].filter(([dependent]) => !dependents.has(dependent))
+		if (!dependents.size && !this[_active].size) this[_endWave]()
+		for (let dependent of dependents) {
+			if (this[_origData].has(dependent)) this[_processFile](this[_origData].get(dependent))
+			else if (this[_generators].has(dependent)) this[_processGenerator](dependent)
+		}
+	}
+
 	// check whether this wave is complete, and, if not, whether we need to break a deadlock
 	[_checkWave]() {
 		if (!this[_active].size) this[_endWave]()
@@ -225,8 +225,8 @@ export default class Defiler extends EventEmitter {
 	}
 
 	// create a defiler Proxy for the given path or generator symbol
-	[_newProxy](path) {
-		return new Proxy(this, { get: (_, key) => (key === _parent ? path : this[key]) })
+	[_newProxy](dependent) {
+		return new Proxy(this, { get: (_, key) => (key === _dependent ? dependent : this[key]) })
 	}
 
 	// mark a given awaited file as being found
