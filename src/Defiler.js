@@ -122,6 +122,7 @@ export default class Defiler extends EventEmitter {
 		if (this[_resolver] && typeof this[_dependent] === 'string') {
 			file.path = this[_resolver](this[_dependent], file.path)
 		}
+		this[_origData].set(file.path, file)
 		this[_processFile](file)
 	}
 
