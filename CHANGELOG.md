@@ -1,3 +1,7 @@
+# v0.15.2
+
+- If file A's processing creates a virtual file B which depends on file C, then when file C changes, re-transform file B starting from what was originally created by file A
+
 # v0.15.1
 
 - Fix dependency tracking
