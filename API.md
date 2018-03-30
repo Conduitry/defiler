@@ -107,9 +107,17 @@ When used in your transform, this will also register the file being transformed 
 
 Manually insert a virtual `File`, running it through the transform.
 
-- `file` - the `file` data of the virtual file to add
+- `file` - the file data of the virtual file to add
 
 The object does not need to be a `File` instance, and in fact there is no benefit to doing so. A new `File` instance is always created with properties `Object.assign`ed from `file`.
+
+### `resolve(path)`
+
+Resolves a path from the file being transformed, using your specified `resolver`.
+
+- `path` - the path to resolve
+
+Returns the resolved path. If you did not specify a `resolver` or if you are currently in a generator, this will be `path` unchanged.
 
 ## Events
 
