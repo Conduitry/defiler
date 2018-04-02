@@ -50,9 +50,38 @@ When performing production builds, you probably only want to have a first wave, 
 
 # Usage
 
-First, [create a new `Defiler` instance](API.md#defiler), initializing it with the directories to watch, the transform, and the generators.
+First, [create a new `Defiler` instance](API.md#defiler), initializing it with the directories to watch, the transform, and (optionally) the generators and/or a path resolver.
+
+```javascript
+import { Defiler } from 'defiler'
+
+let defiler = new Defiler({
+	{ dir: '/path/to/input/directory' },
+	{ dir: '/path/to/another/input/directory' },
+	{
+		transform: async ({ defiler, file }) => {
+			// transform the file
+		},
+		generators: [
+			async ({ defiler }) => {
+				// generator 1
+			},
+			async ({ defiler }) => {
+				// generator 2
+			},
+		],
+		resolver: (base, path) => {
+			// return path resolved from base
+		},
+	},
+})
+```
 
 Then, call its [`exec()` method](API.md#exec) to set everything in motion. This returns a `Promise` that will resolve when the initial wave of processing has completed.
+
+```javasript
+await defiler.exec()
+```
 
 Useful things available on the `Defiler` instance for you to use in the transform, in the generators, or elsewhere are:
 
@@ -60,6 +89,7 @@ Useful things available on the `Defiler` instance for you to use in the transfor
 - [`defiler.files`](API.md#files) - a `Map` of original paths to the transformed `File` instances
 - [`defiler.get(path)`](API.md#getpath) - a method to retrieve one or more transformed `File`s based on their original paths
 - [`defiler.add(file)`](API.md#addfile) - a method to add a virtual file, which is then transformed like a physical one is, and which can be depended on by other files
+- [`defiler.resolve(path)`](API.md#resolvepath) - a method to resolve paths in `defiler.get` and `defiler.add` when these are called from the transform, using your `resolver` function
 
 # In closing
 
