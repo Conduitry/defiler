@@ -2,10 +2,17 @@
 	"name": "defiler",
 	"version": "0.15.3",
 	"description": "A small, strange building block",
-	"keywords": ["build", "framework", "async", "watch"],
+	"keywords": [
+		"build",
+		"framework",
+		"async",
+		"watch"
+	],
 	"main": "./dist/index.cjs.js",
 	"module": "./dist/index.es.js",
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"engines": {
 		"node": ">=8"
 	},
@@ -18,5 +25,11 @@
 	"bugs": {
 		"url": "https://github.com/Conduitry/defiler/issues"
 	},
-	"homepage": "https://cndtr.io/defiler/"
+	"homepage": "https://cndtr.io/defiler/",
+	"devDependencies": {
+		"rollup": "*"
+	},
+	"scripts": {
+		"build": "rollup -c"
+	}
 }
