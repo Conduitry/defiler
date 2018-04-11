@@ -7,11 +7,11 @@ import Watcher from './Watcher.js'
 
 import symbols from './symbols.js'
 // prettier-ignore
-let { _origData, _status, _watchers, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _deps, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _checkWave, _current, _newProxy, _processDependents, _markFound } = symbols
+let { _origData, _status, _before, _during, _after, _watchers, _transform, _generators, _resolver, _active, _waitingFor, _whenFound, _deps, _queue, _isProcessing, _startWave, _endWave, _enqueue, _processPhysicalFile, _processFile, _processGenerator, _checkWave, _current, _newProxy, _processDependents, _markFound } = symbols
 
 export default class Defiler extends EventEmitter {
-	constructor(...dirs) {
-		let { transform, generators = [], resolver } = dirs.pop()
+	constructor(...args) {
+		let { transform, generators = [], resolver } = args.pop()
 		if (typeof transform !== 'function') {
 			throw new TypeError('defiler: transform must be a function')
 		}
@@ -21,18 +21,18 @@ export default class Defiler extends EventEmitter {
 		) {
 			throw new TypeError('defiler: generators must be an array of functions')
 		}
-		if (typeof resolver !== 'undefined' && typeof resolver !== 'function') {
+		if (resolver && typeof resolver !== 'function') {
 			throw new TypeError('defiler: resolver must be a function')
 		}
 		super()
 		this.paths = new Set() // set of original paths for all physical files
 		this[_origData] = new Map() // original paths -> original file data for all physical files ({ path, stats, bytes, enc })
 		this.files = new Map() // original paths -> transformed files for all physical and virtual files
-		this[_status] = null // null = exec not called; false = exec pending; true = exec finished
-		this[_watchers] = dirs.map(
+		this[_status] = _before // _before, _during, or _after exec has been called
+		this[_watchers] = args.map(
 			({ dir, filter, read = true, enc = 'utf8', pre, watch = true, debounce = 10 }) => {
 				if (typeof dir !== 'string') throw new TypeError('defiler: dir must be a string')
-				if (typeof filter !== 'undefined' && typeof filter !== 'function') {
+				if (filter && typeof filter !== 'function') {
 					throw new TypeError('defiler: filter must be a function')
 				}
 				if (typeof read !== 'boolean' && typeof read !== 'function') {
@@ -41,9 +41,7 @@ export default class Defiler extends EventEmitter {
 				if (!Buffer.isEncoding(enc) && typeof enc !== 'function') {
 					throw new TypeError('defiler: enc must be a supported encoding or a function')
 				}
-				if (typeof pre !== 'undefined' && typeof pre !== 'function') {
-					throw new TypeError('defiler: pre must be a function')
-				}
+				if (pre && typeof pre !== 'function') throw new TypeError('defiler: pre must be a function')
 				if (typeof watch !== 'boolean') throw new TypeError('defiler: watch must be a boolean')
 				if (typeof debounce !== 'number') throw new TypeError('defiler: debounce must be a number')
 				return new Watcher({ dir: resolve(dir), filter, read, enc, pre, watch, debounce })
@@ -63,8 +61,8 @@ export default class Defiler extends EventEmitter {
 
 	// execute everything, and return a promise that resolves when the first wave of processing is complete
 	async exec() {
-		if (this[_status] !== null) throw new Error('defiler.exec: cannot call more than once')
-		this[_status] = false
+		if (this[_status] !== _before) throw new Error('defiler.exec: cannot call more than once')
+		this[_status] = _during
 		this[_isProcessing] = true
 		let done = this[_startWave]()
 		// init the Watcher instances
@@ -91,7 +89,7 @@ export default class Defiler extends EventEmitter {
 		for (let symbol of this[_generators].keys()) this[_processGenerator](symbol)
 		// wait and finish up
 		await done
-		this[_status] = true
+		this[_status] = _after
 		this[_isProcessing] = false
 		this[_enqueue]()
 	}
@@ -103,7 +101,7 @@ export default class Defiler extends EventEmitter {
 		path = this.resolve(path)
 		if (typeof path !== 'string') throw new TypeError('defiler.get: path must be a string')
 		if (current) this[_deps].push([current, path])
-		if (!this[_status] && !this.files.has(path)) {
+		if (this[_status] === _during && !this.files.has(path)) {
 			if (current) waitingFor.set(current, (waitingFor.get(current) || 0) + 1)
 			if (!this[_whenFound].has(path)) {
 				let resolve
@@ -117,7 +115,7 @@ export default class Defiler extends EventEmitter {
 
 	// add a new virtual file
 	add(file) {
-		if (this[_status] === null) throw new Error('defiler.add: cannot call before calling exec')
+		if (this[_status] === _before) throw new Error('defiler.add: cannot call before calling exec')
 		if (typeof file !== 'object') throw new TypeError('defiler.add: file must be an object')
 		file.path = this.resolve(file.path)
 		this[_origData].set(file.path, file)
@@ -189,7 +187,7 @@ export default class Defiler extends EventEmitter {
 		this.files.set(path, file)
 		this.emit('file', { defiler: this, file })
 		this[_markFound](path)
-		if (this[_status]) this[_processDependents](path)
+		if (this[_status] === _after) this[_processDependents](path)
 		this[_active].delete(path)
 		this[_checkWave]()
 	}
@@ -223,7 +221,10 @@ export default class Defiler extends EventEmitter {
 	// check whether this wave is complete, and, if not, whether we need to break a deadlock
 	[_checkWave]() {
 		if (!this[_active].size) this[_endWave]()
-		else if (!this[_status] && [...this[_active]].every(path => this[_waitingFor].get(path))) {
+		else if (
+			this[_status] === _during &&
+			[...this[_active]].every(path => this[_waitingFor].get(path))
+		) {
 			// all pending files are currently waiting for one or more other files to exist
 			// break deadlock: assume all files that have not appeared yet will never do so
 			for (let path of this[_whenFound].keys()) if (!this[_active].has(path)) this[_markFound](path)
@@ -237,7 +238,7 @@ export default class Defiler extends EventEmitter {
 
 	// mark a given awaited file as being found
 	[_markFound](path) {
-		if (!this[_status] && this[_whenFound].has(path)) {
+		if (this[_status] === _during && this[_whenFound].has(path)) {
 			this[_whenFound].get(path).resolve()
 			this[_whenFound].delete(path)
 		}

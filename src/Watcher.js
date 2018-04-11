@@ -16,7 +16,7 @@ export default class Watcher extends EventEmitter {
 		this[_isProcessing] = false // whether some FSWatcher event is currently already in the process of being handled
 	}
 
-	// recurse directroy, get stats, set up FSWatcher instances
+	// recurse directory, get stats, set up FSWatcher instances
 	// returns array of { path, stats }
 	async init() {
 		await this[_recurse](this.dir)
