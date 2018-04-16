@@ -249,11 +249,11 @@ export default class Defiler extends EventEmitter {
 				this[_processPhysicalFile](watcher, path, file);
 			} else if (event === '-') {
 				const { path } = file;
-				const file = this.files.get(path);
+				const oldFile = this.files.get(path);
 				this.paths.delete(path);
 				this[_origData].delete(path);
 				this.files.delete(path);
-				this.emit('deleted', { defiler: this, file });
+				this.emit('deleted', { defiler: this, file: oldFile });
 				this[_processDependents](path);
 			}
 			await done;
