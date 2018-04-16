@@ -1,4 +1,3 @@
-import EventEmitter from 'events';
 import { readFile } from './fs.js';
 import { resolve } from 'path';
 
@@ -14,6 +13,7 @@ const _watchers = Symbol();
 const _transform = Symbol();
 const _generators = Symbol();
 const _resolver = Symbol();
+const _onerror = Symbol();
 const _active = Symbol();
 const _waitingFor = Symbol();
 const _whenFound = Symbol();
@@ -25,6 +25,7 @@ const _endWave = Symbol();
 const _enqueue = Symbol();
 const _processPhysicalFile = Symbol();
 const _processFile = Symbol();
+const _callTransform = Symbol();
 const _processGenerator = Symbol();
 const _checkWave = Symbol();
 const _current = Symbol();
@@ -32,9 +33,9 @@ const _newProxy = Symbol();
 const _processDependents = Symbol();
 const _markFound = Symbol();
 
-export default class Defiler extends EventEmitter {
+export default class Defiler {
 	constructor(...args) {
-		const { transform, generators = [], resolver } = args.pop();
+		const { transform, generators = [], resolver, onerror } = args.pop();
 		if (typeof transform !== 'function') {
 			throw new TypeError('defiler: transform must be a function');
 		}
@@ -47,7 +48,9 @@ export default class Defiler extends EventEmitter {
 		if (resolver && typeof resolver !== 'function') {
 			throw new TypeError('defiler: resolver must be a function');
 		}
-		super();
+		if (onerror && typeof onerror !== 'function') {
+			throw new TypeError('defiler: onerror must be a function');
+		}
 		// set of original paths for all physical files
 		this.paths = new Set();
 		// original paths -> original file data for all physical files ({ path, stats, bytes, enc })
@@ -109,6 +112,8 @@ export default class Defiler extends EventEmitter {
 		);
 		// (base, path) => path resolver function, used in defiler.get and defiler.add from transform
 		this[_resolver] = resolver;
+		// handler to call when errors occur
+		this[_onerror] = onerror;
 		// original paths of all files currently undergoing transformation and symbols of all generators currently running
 		this[_active] = new Set();
 		// original paths -> number of other files they're currently waiting on to exist
@@ -212,7 +217,7 @@ export default class Defiler extends EventEmitter {
 		}
 		file.path = this.resolve(file.path);
 		this[_origData].set(file.path, file);
-		this[_processFile](file);
+		this[_processFile](file, true);
 	}
 
 	// resolve a given path from the file currently being transformed
@@ -253,7 +258,7 @@ export default class Defiler extends EventEmitter {
 				this.paths.delete(path);
 				this[_origData].delete(path);
 				this.files.delete(path);
-				this.emit('deleted', { defiler: this, file: oldFile });
+				await this[_callTransform](oldFile, false, true);
 				this[_processDependents](path);
 			}
 			await done;
@@ -275,29 +280,34 @@ export default class Defiler extends EventEmitter {
 		file.enc = enc;
 		this.paths.add(file.path);
 		this[_origData].set(file.path, file);
-		this.emit('read', { defiler: this, file });
-		await this[_processFile](file);
+		await this[_processFile](file, true);
 	}
 
 	// transform a file, store it, and process dependents
-	async [_processFile](data) {
+	async [_processFile](data, changed) {
 		const file = Object.assign(new File(), data);
 		const { path } = file;
 		this[_active].add(path);
-		const defiler = this[_newProxy](path);
-		try {
-			await this[_transform]({ defiler, file });
-		} catch (error) {
-			this.emit('error', { defiler, file, error });
-		}
+		await this[_callTransform](file, changed, false);
 		this.files.set(path, file);
-		this.emit('file', { defiler: this, file });
 		this[_markFound](path);
 		if (this[_status] === _after) {
 			this[_processDependents](path);
 		}
 		this[_active].delete(path);
 		this[_checkWave]();
+	}
+
+	// call the transform on a file with the given changed and deleted flags, and handle errors
+	async [_callTransform](file, changed, deleted) {
+		let defiler = this[_newProxy](file.path);
+		try {
+			await this[_transform]({ defiler, file, changed, deleted });
+		} catch (error) {
+			if (this[_onerror]) {
+				this[_onerror]({ defiler, file, changed, deleted, error });
+			}
+		}
 	}
 
 	// run the generator given by the symbol
@@ -308,7 +318,9 @@ export default class Defiler extends EventEmitter {
 		try {
 			await generator({ defiler });
 		} catch (error) {
-			this.emit('error', { defiler, generator, error });
+			if (this[_onerror]) {
+				this[_onerror]({ defiler, generator, error });
+			}
 		}
 		this[_active].delete(symbol);
 		this[_checkWave]();
@@ -330,7 +342,7 @@ export default class Defiler extends EventEmitter {
 		}
 		for (const dependent of dependents) {
 			if (this[_origData].has(dependent)) {
-				this[_processFile](this[_origData].get(dependent));
+				this[_processFile](this[_origData].get(dependent), false);
 			} else if (this[_generators].has(dependent)) {
 				this[_processGenerator](dependent);
 			}
