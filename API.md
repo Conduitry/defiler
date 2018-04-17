@@ -54,9 +54,9 @@ The assumed encoding for the file. Defaults to `'utf8'`. Must be one of Node.js'
 
 ## Constructor
 
-### `new Defiler({ dir, filter, read = true, enc = 'utf8', pre, watch = true, debounce = 10}, ..., { transform, generators, resolver })`
+### `new Defiler({ dir, filter, read = true, enc = 'utf8', pre, watch = true, debounce = 10 }, ..., { transform, generators, resolver, onerror })`
 
-A new `Defiler` instance to represent a collection of physical files and virtual files, a transform to run on them, and additional generators. This constructor should be passed multiple arguments; all but the last one should be 'input configuration' objects, and the last should be an object containing `transform` and (optionally) `generators` and/or `resolver`.
+A new `Defiler` instance to represent a collection of physical files and virtual files, a transform to run on them, and additional generators. This constructor should be passed multiple arguments; all but the last one should be 'input configuration' objects, and the last should be an object containing `transform` and (optionally) `generators`, `resolver` and/or `onerror`.
 
 - Input configuration
 	- `dir` - a directory to watch
@@ -69,9 +69,10 @@ A new `Defiler` instance to represent a collection of physical files and virtual
 	- `watch` - _(optional)_ whether to actually watch the directory for changes. Defaults to `true`. If `false`, the files will still be run through the transform, but any changes to them will not be
 		- `debounce` - _(optional)_ length of timeout in milliseconds to use to debounce incoming events from `fs.watch`. Defaults to 10. Multiple events are often emitted for a single change, and events can also be emitted before `fs.stat` reports the changes. Defiler will wait until `debounce` milliseconds have passed since the last `fs.watch` event for a file before handling it. The default of 10ms Works On My Machine
 - Transform/generator/resolver configuration
-	- `transform({ defiler, file })` - a transform function, which is passed an object containing the `Defiler` instance and the `File` instance to mutate. The transform function can return a `Promise` to indicate when it's done
+	- `transform({ defiler, file, read, added, deleted })` - a transform function, which is passed an object containing the `Defiler` instance, the `File` instance to mutate, a `read` boolean indicating whether the file was just read in from the disk, an `added` boolean indicating whether it was just manually added by calling [`defiler.add`](#addfile), and a `deleted` boolean indicating whether it's a file that was just deleted from the disk. At most one of these three booleans is true for a given file. All three are false when the current file is unchanged but is being re-transformed because one of its dependencies changed. The transform function can return a `Promise` to indicate when it's done
 	- `generators` - _(optional)_ an array of generator functions, each of the form `generator({ defiler })`. Each generator is passed an object containing the `Defiler` instance. Each generator function can return a `Promise` to indicate when it's done
 	- `resolver(base, path)` - _(optional)_ a function that will be used to resolve the paths passed to `defiler.get` and `defiler.add` from the transform. This will be passed two arguments, `base` (the path of the file being transformed) and `path` (the path passed to `defiler.get`/`defiler.add`), and should return the resolved path to use
+	- `onerror(error)` - _(optional)_ a function that will be called with an error object whenever an error occurs. See [Errors](#errors) below.
 
 ## Properties
 
@@ -119,26 +120,14 @@ Resolves a path from the file being transformed, using your specified `resolver`
 
 Returns the resolved path. If you did not specify a `resolver` or if you are currently in a generator, this will be `path` unchanged.
 
-## Events
+## Errors
 
-`Defiler` extends Node's `EventEmitter`, and emits these events:
+The object passed to your `onerror` callback will be of two forms, depending on whether it is the result of an error thrown by the transform or an error thrown by a generator.
 
-### `read({ defiler, file })`
+### Transform errors: `{ defiler, file, read, added, deleted, error }`
 
-A `read` event is emitted when the original version of a physical file has been read in. It's emitted with an object containing the `Defiler` instance and the `file` data.
+When an error occurs in the transform, `onerror` is called with an object containing the `Defiler` instance, the `File` instance that caused the error, the `read`, `added`, and `deleted` flags that were passed to the transform, and the thrown `error`.
 
-### `file({ defiler, file })`
+### Generator errors: `{ defiler, generator, error }`
 
-A `file` event is emitted after a file has been transformed. It's emitted with an object containing the `Defiler` instance and the transformed `File` instance.
-
-### `deleted({ defiler, file })`
-
-A `deleted` event is emitted when a watched physical file has been deleted. It's emitted with an object containing the `Defiler` instance and the transformed version of the deleted `File`.
-
-### `error({ defiler, file, error })`
-
-An `error` event is emitted if the transform throws an exception or returns a `Promise` that rejects. It's emitted with an object containing the `Defiler` instance, the `File` instance that caused the error, and the thrown `error`.
-
-### `error({ defiler, generator, error })`
-
-An `error` event is also emitted if a generator throws an exception or returns a `Promise` that rejects. It's emitted with an object containing the `Defiler` instance, the `generator` function that threw the error, and the thrown `error`.
+When an error occurs in a generator, `onerror` is called with an object containing the `Defiler` instance,  the `generator` function that threw the error, and the thrown `error`.
