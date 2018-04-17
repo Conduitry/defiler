@@ -64,13 +64,13 @@ When performing production builds, you probably only want to have a first wave, 
 First, [create a new `Defiler` instance](API.md#defiler), initializing it with the directories to watch, the transform, and (optionally) the generators, a path resolver, and/or an error handler.
 
 ```javascript
-import { Defiler } from 'defiler'
+import { Defiler } from 'defiler';
 
-let defiler = new Defiler({
+const defiler = new Defiler({
 	{ dir: '/path/to/input/directory' },
 	{ dir: '/path/to/another/input/directory' },
 	{
-		transform: async ({ defiler, file }) => {
+		transform: async ({ defiler, file, type }) => {
 			// transform the file
 		},
 		generators: [
@@ -88,13 +88,13 @@ let defiler = new Defiler({
 			// handle the error / abort the build / etc.
 		},
 	},
-})
+});
 ```
 
 Then, call its [`exec()` method](API.md#exec) to set everything in motion. This returns a `Promise` that will resolve when the initial wave of processing has completed.
 
-```javasript
-await defiler.exec()
+```javascript
+await defiler.exec();
 ```
 
 Useful things available on the `Defiler` instance for you to use in the transform, in the generators, or elsewhere are:
