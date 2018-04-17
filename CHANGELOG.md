@@ -1,3 +1,9 @@
+# v0.16.0
+
+- Add `type` field to object passed to transform
+- Add `onerror` handler callback option to `Defiler` constructor
+- Removed emitted events from `Defiler` instance, as these are now handled more generally by `type` and `onerror`
+
 # v0.15.3
 
 - Add `defiler.resolve`, exposing path resolution via your `resolver`
