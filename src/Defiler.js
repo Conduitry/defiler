@@ -217,7 +217,7 @@ export default class Defiler {
 		}
 		file.path = this.resolve(file.path);
 		this[_origData].set(file.path, file);
-		this[_processFile](file, true);
+		this[_processFile](file, false, true);
 	}
 
 	// resolve a given path from the file currently being transformed
@@ -258,7 +258,7 @@ export default class Defiler {
 				this.paths.delete(path);
 				this[_origData].delete(path);
 				this.files.delete(path);
-				await this[_callTransform](oldFile, false, true);
+				await this[_callTransform](oldFile, false, false, true);
 				this[_processDependents](path);
 			}
 			await done;
@@ -280,15 +280,15 @@ export default class Defiler {
 		file.enc = enc;
 		this.paths.add(file.path);
 		this[_origData].set(file.path, file);
-		await this[_processFile](file, true);
+		await this[_processFile](file, true, false);
 	}
 
 	// transform a file, store it, and process dependents
-	async [_processFile](data, changed) {
+	async [_processFile](data, read, added) {
 		const file = Object.assign(new File(), data);
 		const { path } = file;
 		this[_active].add(path);
-		await this[_callTransform](file, changed, false);
+		await this[_callTransform](file, read, added, false);
 		this.files.set(path, file);
 		this[_markFound](path);
 		if (this[_status] === _after) {
@@ -299,13 +299,13 @@ export default class Defiler {
 	}
 
 	// call the transform on a file with the given changed and deleted flags, and handle errors
-	async [_callTransform](file, changed, deleted) {
+	async [_callTransform](file, read, added, deleted) {
 		let defiler = this[_newProxy](file.path);
 		try {
-			await this[_transform]({ defiler, file, changed, deleted });
+			await this[_transform]({ defiler, file, read, added, deleted });
 		} catch (error) {
 			if (this[_onerror]) {
-				this[_onerror]({ defiler, file, changed, deleted, error });
+				this[_onerror]({ defiler, file, read, added, deleted, error });
 			}
 		}
 	}
@@ -342,7 +342,7 @@ export default class Defiler {
 		}
 		for (const dependent of dependents) {
 			if (this[_origData].has(dependent)) {
-				this[_processFile](this[_origData].get(dependent), false);
+				this[_processFile](this[_origData].get(dependent), false, false);
 			} else if (this[_generators].has(dependent)) {
 				this[_processGenerator](dependent);
 			}
