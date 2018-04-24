@@ -1,3 +1,9 @@
+# v0.17.0
+
+- Tidy API - no need to pass `defiler` instance to user code, as we are now actually tracking the asynchronous context in which `defiler.get` and `defiler.add` are called
+- Rename `type` argument to the transform to the clearer `event`
+- Require Node.js 8.2+ for the use of `async_hooks`
+
 # v0.16.0
 
 - Add `type` field to object passed to transform
