@@ -1,6 +1,6 @@
 export default {
 	input: './src/index.js',
-	external: name => /^[-a-z]+$/.test(name),
+	external: name => /^[-_a-z]+$/.test(name),
 	output: [
 		{
 			file: './dist/index.cjs.js',

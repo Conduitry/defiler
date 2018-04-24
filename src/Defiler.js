@@ -3,6 +3,7 @@ import { resolve } from 'path';
 
 import File from './File.js';
 import Watcher from './Watcher.js';
+import * as context from './context.js';
 
 const _origData = Symbol();
 const _status = Symbol();
@@ -28,8 +29,6 @@ const _processFile = Symbol();
 const _callTransform = Symbol();
 const _processGenerator = Symbol();
 const _checkWave = Symbol();
-const _current = Symbol();
-const _newProxy = Symbol();
 const _processDependents = Symbol();
 const _markFound = Symbol();
 
@@ -120,8 +119,6 @@ export default class Defiler {
 		this[_waitingFor] = new Map();
 		// original paths -> { promise, resolve } objects for when awaited files become available
 		this[_whenFound] = new Map();
-		// (set via proxy) the current immediate dependent (path or generator symbol), for use in _deps, _waitingFor, and the resolver
-		this[_current] = null;
 		// array of [dependent, dependency] pairs, specifying changes to which files should trigger re-processing which other files
 		this[_deps] = [];
 		// queue of pending Watcher events to handle
@@ -180,7 +177,8 @@ export default class Defiler {
 		if (Array.isArray(path)) {
 			return Promise.all(path.map(path => this.get(path)));
 		}
-		const { [_current]: current, [_waitingFor]: waitingFor } = this;
+		const waitingFor = this[_waitingFor];
+		const current = context.current();
 		path = this.resolve(path);
 		if (typeof path !== 'string') {
 			throw new TypeError('defiler.get: path must be a string');
@@ -222,8 +220,8 @@ export default class Defiler {
 
 	// resolve a given path from the file currently being transformed
 	resolve(path) {
-		return this[_resolver] && typeof this[_current] === 'string'
-			? this[_resolver](this[_current], path)
+		return this[_resolver] && typeof context.current() === 'string'
+			? this[_resolver](context.current(), path)
 			: path;
 	}
 
@@ -300,12 +298,12 @@ export default class Defiler {
 
 	// call the transform on a file with the given changed and deleted flags, and handle errors
 	async [_callTransform](file, type) {
-		let defiler = this[_newProxy](file.path);
+		context.create(file.path);
 		try {
-			await this[_transform]({ defiler, file, type });
+			await this[_transform]({ defiler: this, file, type });
 		} catch (error) {
 			if (this[_onerror]) {
-				this[_onerror]({ defiler, file, type, error });
+				this[_onerror]({ defiler: this, file, type, error });
 			}
 		}
 	}
@@ -314,12 +312,12 @@ export default class Defiler {
 	async [_processGenerator](symbol) {
 		this[_active].add(symbol);
 		const generator = this[_generators].get(symbol);
-		const defiler = this[_newProxy](symbol);
+		context.create(symbol);
 		try {
-			await generator({ defiler });
+			await generator({ defiler: this });
 		} catch (error) {
 			if (this[_onerror]) {
-				this[_onerror]({ defiler, generator, error });
+				this[_onerror]({ defiler: this, generator, error });
 			}
 		}
 		this[_active].delete(symbol);
@@ -365,13 +363,6 @@ export default class Defiler {
 				}
 			}
 		}
-	}
-
-	// create a defiler Proxy for the given path or generator symbol
-	[_newProxy](path) {
-		return new Proxy(this, {
-			get: (_, key) => (key === _current ? path : this[key]),
-		});
 	}
 
 	// mark a given awaited file as being found
