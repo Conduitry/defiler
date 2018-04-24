@@ -16,18 +16,18 @@ See the [API docs](API.md#file) for more information.
 
 Every file (physical and virtual) is run through the transform function you register with Defiler. The transform mutates the object representing the file in-place, and returns a promise indicating when it's finished.
 
-The transform is called, for each file, with an object containing `defiler` (the `Defiler` instance), `file` (the `File` instance), and `type` (a string representing why this file is being run through the transform, see [The `type` field](#the-type-field)). The transform should mutate the `file` object as it sees fit. It can also take whichever actions it wishes based on the file (including, for example, writing output to disk). Files' paths can be changed as they're transformed, but the main way to refer to them from other files will continue to be by their original paths (see [Dependence](#dependence)).
+The transform is called, for each file, with an object containing `file` (the `File` instance) and `event` (a string representing why this file is being run through the transform, see [The `event` field](#the-event-field)). The transform should mutate the `file` object as it sees fit. It can also take whichever actions it wishes based on the file (including, for example, writing output to disk). Files' paths can be changed as they're transformed, but the main way to refer to them from other files will continue to be by their original paths (see [Dependence](#dependence)).
 
-### The `type` field
+### The `event` field
 
-The `type` passed to the transform is a string that can be one of four values:
+The `event` passed to the transform is a string that can be one of four values:
 
 - `'read'` - This indicates that the file was just read in from the disk
 - `'add'` - This indicates that the file was just manually added (see [Virtual files](#virtual-files))
 - `'delete'` - This indicates that the file was just deleted from the disk. In this case, the `file` object will be the transformed version of the file that was just deleted, and not an untransformed file for you to transform
 - `'retransform'` - This indicates that the file was not changed, but that it is being re-transformed because one of its dependencies changed
 
-At the very least, your transform should probably check whether `type` is `'delete'`, because in this case `file` isn't a file to transform, but is instead the fully-transformed version of the file that was just deleted.
+At the very least, your transform should probably check whether `event` is `'delete'`, because in this case `file` isn't a file to transform, but is instead the fully-transformed version of the file that was just deleted.
 
 ## Dependence
 
@@ -47,7 +47,7 @@ Since Defiler has no way of knowing which virtual files will be created from tra
 
 ## Generators
 
-Generators are an independent way of interacting with the Defiler instance, for things that do not fit well into the main transform. Each generator is a function that accepts one argument, an object containing `defiler`. A generator would typically call `defiler.get` and/or `defiler.add` to retrieve dependencies and write new virtual files. Automatic dependence handling also works here, so when one of the files retrieved by `defiler.get` changes, that generator will be re-run.
+Generators are an independent way of interacting with the Defiler instance, for things that do not fit well into the main transform. Each generator is a function that will be called without arguments. A generator would typically call `defiler.get` and/or `defiler.add` to retrieve dependencies and write new virtual files. Automatic dependence handling also works here, so when one of the files retrieved by `defiler.get` changes, that generator will be re-run.
 
 It's beneficial to write multiple smaller generators, rather than a single large one. This helps ensure that unneeded recalculation is not done when a file changes.
 
@@ -70,14 +70,14 @@ const defiler = new Defiler({
 	{ dir: '/path/to/input/directory' },
 	{ dir: '/path/to/another/input/directory' },
 	{
-		transform: async ({ defiler, file, type }) => {
+		transform: async ({ file, event }) => {
 			// transform the file
 		},
 		generators: [
-			async ({ defiler }) => {
+			async () => {
 				// generator 1
 			},
-			async ({ defiler }) => {
+			async () => {
 				// generator 2
 			},
 		],
