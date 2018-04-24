@@ -282,11 +282,11 @@ export default class Defiler {
 	}
 
 	// transform a file, store it, and process dependents
-	async [_processFile](data, type) {
+	async [_processFile](data, event) {
 		const file = Object.assign(new File(), data);
 		const { path } = file;
 		this[_active].add(path);
-		await this[_callTransform](file, type);
+		await this[_callTransform](file, event);
 		this.files.set(path, file);
 		this[_markFound](path);
 		if (this[_status] === _after) {
@@ -296,14 +296,14 @@ export default class Defiler {
 		this[_checkWave]();
 	}
 
-	// call the transform on a file with the given changed and deleted flags, and handle errors
-	async [_callTransform](file, type) {
+	// call the transform on a file with the given event string, and handle errors
+	async [_callTransform](file, event) {
 		context.create(file.path);
 		try {
-			await this[_transform]({ defiler: this, file, type });
+			await this[_transform]({ file, event });
 		} catch (error) {
 			if (this[_onerror]) {
-				this[_onerror]({ defiler: this, file, type, error });
+				this[_onerror]({ file, event, error });
 			}
 		}
 	}
@@ -314,10 +314,10 @@ export default class Defiler {
 		const generator = this[_generators].get(symbol);
 		context.create(symbol);
 		try {
-			await generator({ defiler: this });
+			await generator();
 		} catch (error) {
 			if (this[_onerror]) {
-				this[_onerror]({ defiler: this, generator, error });
+				this[_onerror]({ generator, error });
 			}
 		}
 		this[_active].delete(symbol);
