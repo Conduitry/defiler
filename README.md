@@ -8,7 +8,7 @@ Defiler is a build tool for people who find build tools interesting.
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) 8+
+- [Node.js](https://nodejs.org/) 8.2+
 - Insanity
 
 ## Documentation
