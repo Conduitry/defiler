@@ -69,8 +69,8 @@ A new `Defiler` instance to represent a collection of physical files and virtual
 	- `watch` - _(optional)_ whether to actually watch the directory for changes. Defaults to `true`. If `false`, the files will still be run through the transform, but any changes to them will not be
 		- `debounce` - _(optional)_ length of timeout in milliseconds to use to debounce incoming events from `fs.watch`. Defaults to 10. Multiple events are often emitted for a single change, and events can also be emitted before `fs.stat` reports the changes. Defiler will wait until `debounce` milliseconds have passed since the last `fs.watch` event for a file before handling it. The default of 10ms Works On My Machine
 - Transform/generator/resolver configuration
-	- `transform({ defiler, file, type })` - a transform function, which is passed an object containing the `Defiler` instance, the `File` instance to mutate, and a `type` string indicating while this file is being run through the transform. This `type` can be `'read'` (indicating the file was just read in from the disk), `'add'` (indicating it was just manually added by calling [`defiler.add`](#addfile)), `'delete'` (indicating it's a file that was just deleted from the disk), or `'retransform'` (indicating the file is unchanged but is being re-transformed because one of its dependencies changed). The transform function can return a `Promise` to indicate when it's done
-	- `generators` - _(optional)_ an array of generator functions, each of the form `generator({ defiler })`. Each generator is passed an object containing the `Defiler` instance. Each generator function can return a `Promise` to indicate when it's done
+	- `transform({ file, event })` - a transform function, which is passed an object containing the `File` instance to mutate and an `event` string indicating why this file is being run through the transform. This `event` can be `'read'` (indicating the file was just read in from the disk), `'add'` (indicating it was just manually added by calling [`defiler.add`](#addfile)), `'delete'` (indicating it's a file that was just deleted from the disk), or `'retransform'` (indicating the file is unchanged but is being re-transformed because one of its dependencies changed). The transform function can return a `Promise` to indicate when it's done
+	- `generators` - _(optional)_ an array of generator functions, each of the form `generator()`. Each generator is called without arguments, and can return a `Promise` to indicate when it's done
 	- `resolver(base, path)` - _(optional)_ a function that will be used to resolve the paths passed to `defiler.get` and `defiler.add` from the transform. This will be passed two arguments, `base` (the path of the file being transformed) and `path` (the path passed to `defiler.get`/`defiler.add`), and should return the resolved path to use
 	- `onerror(error)` - _(optional)_ a function that will be called with an error object whenever an error occurs. See [Errors](#errors) below.
 
@@ -124,10 +124,10 @@ Returns the resolved path. If you did not specify a `resolver` or if you are cur
 
 The object passed to your `onerror` callback will be of two forms, depending on whether it is the result of an error thrown by the transform or an error thrown by a generator.
 
-### Transform errors: `{ defiler, file, type, error }`
+### Transform errors: `{ file, event, error }`
 
-When an error occurs in the transform, `onerror` is called with an object containing the `Defiler` instance, the `File` instance that caused the error, the `type` that was passed to the transform, and the thrown `error`.
+When an error occurs in the transform, `onerror` is called with an object containing the `File` instance that caused the error, the `event` that was passed to the transform, and the thrown `error`.
 
-### Generator errors: `{ defiler, generator, error }`
+### Generator errors: `{ generator, error }`
 
-When an error occurs in a generator, `onerror` is called with an object containing the `Defiler` instance,  the `generator` function that threw the error, and the thrown `error`.
+When an error occurs in a generator, `onerror` is called with an object containing the `generator` function that threw the error and the thrown `error`.
