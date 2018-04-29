@@ -1,3 +1,7 @@
+# v0.17.1
+
+- Fix incorrect dependence relationships being made in certain cases.
+
 # v0.17.0
 
 - Tidy API - no need to pass `defiler` instance to user code, as we are now actually tracking the asynchronous context in which `defiler.get` and `defiler.add` are called
