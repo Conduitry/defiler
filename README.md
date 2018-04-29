@@ -11,6 +11,10 @@ Defiler is a build tool for people who find build tools interesting.
 - [Node.js](https://nodejs.org/) 8.2+
 - Insanity
 
+## Compatibility note
+
+Pending [this issue](https://github.com/nodejs/node/issues/20274), this library will not work on Node 10.
+
 ## Documentation
 
 - [guide](GUIDE.md#readme)
