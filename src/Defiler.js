@@ -298,6 +298,7 @@ export default class Defiler {
 
 	// call the transform on a file with the given event string, and handle errors
 	async [_callTransform](file, event) {
+		await null
 		context.create(file.path);
 		try {
 			await this[_transform]({ file, event });
@@ -312,6 +313,7 @@ export default class Defiler {
 	async [_processGenerator](symbol) {
 		this[_active].add(symbol);
 		const generator = this[_generators].get(symbol);
+		await null
 		context.create(symbol);
 		try {
 			await generator();
