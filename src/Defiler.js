@@ -190,14 +190,14 @@ export default class Defiler {
 			if (current) {
 				waitingFor.set(current, (waitingFor.get(current) || 0) + 1);
 			}
-			if (!this[_whenFound].has(path)) {
+			if (this[_whenFound].has(path)) {
+				await this[_whenFound].get(path).promise;
+			} else {
 				let resolve;
-				this[_whenFound].set(path, {
-					promise: new Promise(res => (resolve = res)),
-					resolve,
-				});
+				let promise = new Promise(res => (resolve = res));
+				this[_whenFound].set(path, { promise, resolve });
+				await promise;
 			}
-			await this[_whenFound].get(path).promise;
 			if (current) {
 				waitingFor.set(current, waitingFor.get(current) - 1);
 			}
@@ -288,17 +288,14 @@ export default class Defiler {
 		this[_active].add(path);
 		await this[_callTransform](file, event);
 		this.files.set(path, file);
-		this[_markFound](path);
-		if (this[_status] === _after) {
-			this[_processDependents](path);
-		}
+		this[this[_status] === _during ? _markFound : _processDependents](path);
 		this[_active].delete(path);
 		this[_checkWave]();
 	}
 
 	// call the transform on a file with the given event string, and handle errors
 	async [_callTransform](file, event) {
-		await null
+		await null;
 		context.create(file.path);
 		try {
 			await this[_transform]({ file, event });
@@ -313,7 +310,7 @@ export default class Defiler {
 	async [_processGenerator](symbol) {
 		this[_active].add(symbol);
 		const generator = this[_generators].get(symbol);
-		await null
+		await null;
 		context.create(symbol);
 		try {
 			await generator();
@@ -329,17 +326,14 @@ export default class Defiler {
 	// re-process all files that depend on a particular path
 	[_processDependents](path) {
 		const dependents = new Set();
-		for (const [dependent, dep] of this[_deps]) {
-			if (dep === path) {
+		for (const [dependent, dependency] of this[_deps]) {
+			if (dependency === path) {
 				dependents.add(dependent);
 			}
 		}
 		this[_deps] = this[_deps].filter(
 			([dependent]) => !dependents.has(dependent),
 		);
-		if (!dependents.size && !this[_active].size) {
-			this[_endWave]();
-		}
 		for (const dependent of dependents) {
 			if (this[_origData].has(dependent)) {
 				this[_processFile](this[_origData].get(dependent), 'retransform');
@@ -347,6 +341,7 @@ export default class Defiler {
 				this[_processGenerator](dependent);
 			}
 		}
+		this[_checkWave]();
 	}
 
 	// check whether this wave is complete, and, if not, whether we need to break a deadlock
@@ -369,7 +364,7 @@ export default class Defiler {
 
 	// mark a given awaited file as being found
 	[_markFound](path) {
-		if (this[_status] === _during && this[_whenFound].has(path)) {
+		if (this[_whenFound].has(path)) {
 			this[_whenFound].get(path).resolve();
 			this[_whenFound].delete(path);
 		}

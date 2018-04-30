@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import { promisify } from 'util';
 
-export let readdir = promisify(fs.readdir);
-export let readFile = promisify(fs.readFile);
-export let stat = promisify(fs.stat);
+export const readdir = promisify(fs.readdir);
+export const readFile = promisify(fs.readFile);
+export const stat = promisify(fs.stat);
