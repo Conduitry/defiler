@@ -1,6 +1,10 @@
+# v0.17.2
+
+- Fix `file.filename` on top-level files
+
 # v0.17.1
 
-- Fix incorrect dependence relationships being made in certain cases.
+- Fix incorrect dependence relationships being made in certain cases
 
 # v0.17.0
 
