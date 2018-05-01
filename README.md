@@ -20,7 +20,7 @@ Pending [this issue](https://github.com/nodejs/node/issues/20274), this library 
 - [guide](GUIDE.md#readme)
 - [api](API.md#readme)
 - [changelog](CHANGELOG.md#readme)
-- [homepage](https://cndtr.io/defiler/)
+- [homepage](https://cndtr.io/defiler)
 
 ## License
 
