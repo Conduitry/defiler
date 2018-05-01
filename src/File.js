@@ -58,7 +58,7 @@ export default class File {
 	get filename() {
 		if (this[_filename] == null) {
 			const p = this[_path].lastIndexOf('/');
-			this[_filename] = p > -1 ? this[_path].slice(p + 1) : '';
+			this[_filename] = p > -1 ? this[_path].slice(p + 1) : this[_path];
 		}
 		return this[_filename];
 	}
