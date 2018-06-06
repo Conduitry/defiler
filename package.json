@@ -25,7 +25,7 @@
 	"bugs": {
 		"url": "https://github.com/Conduitry/defiler/issues"
 	},
-	"homepage": "https://cndtr.io/defiler",
+	"homepage": "https://code.chor.date/defiler",
 	"devDependencies": {
 		"rollup": "*"
 	},
