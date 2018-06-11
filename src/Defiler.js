@@ -92,15 +92,8 @@ export default class Defiler {
 				if (typeof debounce !== 'number') {
 					throw new TypeError('defiler: debounce must be a number');
 				}
-				return new Watcher({
-					dir: resolve(dir),
-					filter,
-					read,
-					enc,
-					pre,
-					watch,
-					debounce,
-				});
+				dir = resolve(dir);
+				return new Watcher({ dir, filter, read, enc, pre, watch, debounce });
 			},
 		);
 		// the transform to run on all files
@@ -117,7 +110,7 @@ export default class Defiler {
 		this[_active] = new Set();
 		// original paths -> number of other files they're currently waiting on to exist
 		this[_waitingFor] = new Map();
-		// original paths -> { promise, resolve } objects for when awaited files become available
+		// original paths -> { promise, resolve, paths } objects for when awaited files become available
 		this[_whenFound] = new Map();
 		// array of [dependent, dependency] pairs, specifying changes to which files should trigger re-processing which other files
 		this[_deps] = [];
@@ -177,7 +170,6 @@ export default class Defiler {
 		if (Array.isArray(path)) {
 			return Promise.all(path.map(path => this.get(path)));
 		}
-		const waitingFor = this[_waitingFor];
 		const current = context.current();
 		path = this.resolve(path);
 		if (typeof path !== 'string') {
@@ -186,20 +178,17 @@ export default class Defiler {
 		if (current) {
 			this[_deps].push([current, path]);
 		}
-		if (this[_status] === _during && !this.files.has(path)) {
-			if (current) {
-				waitingFor.set(current, (waitingFor.get(current) || 0) + 1);
-			}
+		if (this[_status] === _during && !this.files.has(path) && current) {
+			this[_waitingFor].set(current, (this[_waitingFor].get(current) || 0) + 1);
 			if (this[_whenFound].has(path)) {
-				await this[_whenFound].get(path).promise;
+				const { promise, paths } = this[_whenFound].get(path);
+				paths.push(current);
+				await promise;
 			} else {
 				let resolve;
-				let promise = new Promise(res => (resolve = res));
-				this[_whenFound].set(path, { promise, resolve });
+				const promise = new Promise(res => (resolve = res));
+				this[_whenFound].set(path, { promise, resolve, paths: [current] });
 				await promise;
-			}
-			if (current) {
-				waitingFor.set(current, waitingFor.get(current) - 1);
 			}
 		}
 		return this.files.get(path);
@@ -365,7 +354,11 @@ export default class Defiler {
 	// mark a given awaited file as being found
 	[_markFound](path) {
 		if (this[_whenFound].has(path)) {
-			this[_whenFound].get(path).resolve();
+			const { resolve, paths } = this[_whenFound].get(path);
+			for (const path of paths) {
+				this[_waitingFor].set(path, this[_waitingFor].get(path) - 1);
+			}
+			resolve();
 			this[_whenFound].delete(path);
 		}
 	}
