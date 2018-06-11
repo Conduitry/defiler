@@ -1,3 +1,7 @@
+# v0.17.3
+
+- Fix a race condition where we might over-zealously break a non-existent deadlock because we haven't noticed yet that a file has become available
+
 # v0.17.2
 
 - Fix `file.filename` on top-level files
