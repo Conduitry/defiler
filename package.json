@@ -27,7 +27,9 @@
 	},
 	"homepage": "https://code.chor.date/defiler",
 	"devDependencies": {
-		"rollup": "*"
+		"rollup": "*",
+		"typescript": "*",
+		"@types/node": "*"
 	},
 	"scripts": {
 		"dev": "rollup -c -w",
