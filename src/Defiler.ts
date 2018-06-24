@@ -32,7 +32,7 @@ export default class Defiler {
 	// original paths -> { promise, resolve, paths } objects for when awaited files become available
 	private _whenFound = new Map<string, WhenFound>();
 	// array of [dependent, dependency] pairs, specifying changes to which files should trigger re-processing which other files
-	private _deps = new Array<[Name, string]>();
+	private _deps = new Array<[Name, string | ((path: string) => boolean)]>();
 	// queue of pending Watcher events to handle
 	private _queue = new Array<[WatcherData, WatcherEvent]>();
 	// whether some Watcher event is currently already in the process of being handled
@@ -156,18 +156,24 @@ export default class Defiler {
 	// wait for a file to be available and retrieve it, marking dependencies as appropriate
 	async get(path: string): Promise<File>;
 	async get(paths: string[]): Promise<File[]>;
-	async get(path: any): Promise<any> {
-		if (Array.isArray(path)) {
-			return Promise.all(path.map(path => this.get(path)));
+	async get(filter: (path: string) => boolean): Promise<File[]>;
+	async get(_: any): Promise<any> {
+		if (Array.isArray(_)) {
+			return Promise.all(_.map(path => this.get(path)));
+		}
+		if (typeof _ !== 'string' && typeof _ !== 'function') {
+			throw new TypeError(
+				'defiler.get: argument must be a string, an array, or a function',
+			);
 		}
 		const current = <Name>context.current();
-		path = this.resolve(path);
-		if (typeof path !== 'string') {
-			throw new TypeError('defiler.get: path must be a string');
-		}
 		if (current) {
-			this._deps.push([current, path]);
+			this._deps.push([current, _]);
 		}
+		if (typeof _ === 'function') {
+			return this.get([...this.paths].filter(_).sort());
+		}
+		const path = this.resolve(_);
 		if (this._status === Status.During && !this.files.has(path) && current) {
 			this._waitingFor.set(current, (this._waitingFor.get(current) || 0) + 1);
 			if (this._whenFound.has(path)) {
@@ -314,10 +320,12 @@ export default class Defiler {
 	}
 
 	// re-process all files that depend on a particular path
-	private _processDependents(path: Name): void {
+	private _processDependents(path: string): void {
 		const dependents = new Set<Name>();
 		for (const [dependent, dependency] of this._deps) {
-			if (dependency === path) {
+			if (
+				typeof dependency === 'string' ? dependency === path : dependency(path)
+			) {
 				dependents.add(dependent);
 			}
 		}
