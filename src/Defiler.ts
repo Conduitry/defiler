@@ -158,6 +158,9 @@ export default class Defiler {
 	async get(paths: string[]): Promise<File[]>;
 	async get(filter: (path: string) => boolean): Promise<File[]>;
 	async get(_: any): Promise<any> {
+		if (typeof _ === 'string') {
+			_ = this.resolve(_);
+		}
 		if (Array.isArray(_)) {
 			return Promise.all(_.map(path => this.get(path)));
 		}
@@ -173,21 +176,20 @@ export default class Defiler {
 		if (typeof _ === 'function') {
 			return this.get([...this.paths].filter(_).sort());
 		}
-		const path = this.resolve(_);
-		if (this._status === Status.During && !this.files.has(path) && current) {
+		if (this._status === Status.During && !this.files.has(_) && current) {
 			this._waitingFor.set(current, (this._waitingFor.get(current) || 0) + 1);
-			if (this._whenFound.has(path)) {
-				const { promise, paths } = this._whenFound.get(path);
+			if (this._whenFound.has(_)) {
+				const { promise, paths } = this._whenFound.get(_);
 				paths.push(current);
 				await promise;
 			} else {
 				let resolve;
 				const promise = new Promise<void>(res => (resolve = res));
-				this._whenFound.set(path, { promise, resolve, paths: [current] });
+				this._whenFound.set(_, { promise, resolve, paths: [current] });
 				await promise;
 			}
 		}
-		return this.files.get(path);
+		return this.files.get(_);
 	}
 
 	// add a new virtual file
