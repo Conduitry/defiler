@@ -1,3 +1,7 @@
+# v0.17.5
+
+- Some fixes to resolving in `defiler.get`, and also allow the user-supplied resolver to return an array or a filter function
+
 # v0.17.4
 
 - New `defiler.get` feature: pass a filter function and retrieve all physical files whose paths match the filter (and make the transform/generator also re-run when physical files are created that match the filter)
