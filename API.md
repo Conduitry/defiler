@@ -94,15 +94,33 @@ Returns a `Promise` that resolves when the initial wave of processing is complet
 
 ### `get(path)`
 
-Wait for a file or array of files to be ready and retrieve the `File` instance(s).
+Wait for a file or array of files to be ready and retrieve the `File` instance.
 
-- `path` - the path, or array of paths, to wait for to become available and to then return
+- `path` - the path to wait for to become available and to then return
 
-Returns a `Promise` resolving to the `File` instance or an array of `File` instances.
+Returns a `Promise` resolving to the `File` instance.
 
-This can be asked for physical or virtual files. If you ask for a file during the initial wave of processing before it is available, Defiler will wait for the file to be ready and transformed. If it ever happens that every in-progress file is waiting for a file to become available, the deadlock will be broken by Defiler resolving all of the pending `File`s to `undefined`. This may happen multiple times during the initial wave of processing.
+This can be asked for a physical or virtual file. If you ask for a file during the initial wave of processing before it is available, Defiler will wait for the file to be ready and transformed. If it ever happens that every in-progress file is waiting for a file to become available, the deadlock will be broken by Defiler resolving all of the pending `File`s to `undefined`. This may happen multiple times during the initial wave of processing.
 
-When used in your transform, this will also register the file being transformed as depending on the file or files in `path`. Once the initial wave of processing is complete, any changes to dependencies will cause their dependents to be re-transformed. When used in a generator, this will register the generator as depending on the file or files in `path`, and any changes to dependencies will cause the generator to be re-run.
+When used in your transform, this will also register the file being transformed as depending on the file at `path`. Once the initial wave of processing is complete, any changes to dependencies will cause their dependents to be re-transformed. When used in a generator, this will register the generator as depending on the file at `path`, and any changes to dependencies will cause the generator to be re-run.
+
+### `get(paths)`
+
+Wait for multiple files to be ready and retrieve the `File` instances.
+
+- `paths` - the array of paths to wait for to become available and to then return
+
+Returns a `Promise` resolving to an array of `File` instances.
+
+### `get(filter)`
+
+Wait for all _physical_ files whose paths match a given filter function and retrieve the `File` instances.
+
+- `filter(path)` - a function that will be passed a path and should return a boolean
+
+Returns a `Promise` resolving to an array of matching `File` instances.
+
+Note that only the paths of _physical_ files will be checked with your filter function. Once the initial wave of processing is complete, any new files matching the filter will also cause the generator or transform to be re-run.
 
 ### `add(file)`
 
@@ -118,7 +136,9 @@ Resolves a path from the file being transformed, using your specified `resolver`
 
 - `path` - the path to resolve
 
-Returns the resolved path. If you did not specify a `resolver` or if you are currently in a generator, this will be `path` unchanged.
+Returns the resolved path.
+
+If you did not specify a `resolver` or if you are currently in a generator, this will be `path` unchanged.
 
 ## Errors
 
