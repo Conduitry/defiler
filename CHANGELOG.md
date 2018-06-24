@@ -1,3 +1,7 @@
+# v0.17.4
+
+- New `defiler.get` feature: pass a filter function and retrieve all physical files whose paths match the filter (and make the transform/generator also re-run when physical files are created that match the filter)
+
 # v0.17.3
 
 - Fix a race condition where we might over-zealously break a non-existent deadlock because we haven't noticed yet that a file has become available
