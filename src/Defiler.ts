@@ -16,11 +16,11 @@ export default class Defiler {
 	// Before, During, or After exec has been called
 	private _status = Status.Before;
 	// Watcher instances
-	private _watchers: Array<WatcherData>;
+	private _watchers: WatcherData[];
 	// the transform to run on all files
 	private _transform: Transform;
-	// unique symbols -> registered generators
-	private _generators: Map<Symbol, Generator>;
+	// registered generators
+	private _generators: Generator[];
 	// (base, path) => path resolver function, used in defiler.get and defiler.add from transform
 	private _resolver: Resolver;
 	// handler to call when errors occur
@@ -32,9 +32,9 @@ export default class Defiler {
 	// original paths -> { promise, resolve, paths } objects for when awaited files become available
 	private _whenFound = new Map<string, WhenFound>();
 	// array of [dependent, dependency] pairs, specifying changes to which files should trigger re-processing which other files
-	private _deps = new Array<[Name, string | ((path: string) => boolean)]>();
+	private _deps: [Name, string | ((path: string) => boolean)][] = [];
 	// queue of pending Watcher events to handle
-	private _queue = new Array<[WatcherData, WatcherEvent]>();
+	private _queue: [WatcherData, WatcherEvent][] = [];
 	// whether some Watcher event is currently already in the process of being handled
 	private _isProcessing = false;
 	// end the current wave
@@ -99,9 +99,7 @@ export default class Defiler {
 			},
 		);
 		this._transform = transform;
-		this._generators = new Map(
-			generators.map(generator => <[Symbol, Generator]>[Symbol(), generator]),
-		);
+		this._generators = generators;
 		this._resolver = resolver;
 		this._onerror = onerror;
 	}
@@ -115,9 +113,7 @@ export default class Defiler {
 		this._isProcessing = true;
 		const done = this._startWave();
 		// init the Watcher instances
-		const files = new Array<
-			[WatcherData, string, { path: string; stats: Stats }]
-		>();
+		const files: [WatcherData, string, { path: string; stats: Stats }][] = [];
 		await Promise.all(
 			this._watchers.map(async watcher => {
 				watcher.on('', event => this._enqueue(watcher, event));
@@ -135,16 +131,16 @@ export default class Defiler {
 				);
 			}),
 		);
-		for (const symbol of this._generators.keys()) {
-			this._active.add(symbol);
+		for (const generator of this._generators) {
+			this._active.add(generator);
 		}
 		// process each physical file
 		for (const [watcher, path, file] of files) {
 			this._processPhysicalFile(watcher, path, file);
 		}
 		// process each generator
-		for (const symbol of this._generators.keys()) {
-			this._processGenerator(symbol);
+		for (const generator of this._generators) {
+			this._processGenerator(generator);
 		}
 		// wait and finish up
 		await done;
@@ -305,11 +301,10 @@ export default class Defiler {
 	}
 
 	// run the generator given by the symbol
-	private async _processGenerator(symbol: Symbol): Promise<void> {
-		this._active.add(symbol);
-		const generator = this._generators.get(symbol);
+	private async _processGenerator(generator: Generator): Promise<void> {
+		this._active.add(generator);
 		await null;
-		context.create(symbol);
+		context.create(generator);
 		try {
 			await generator();
 		} catch (error) {
@@ -317,7 +312,7 @@ export default class Defiler {
 				this._onerror({ generator, error });
 			}
 		}
-		this._active.delete(symbol);
+		this._active.delete(generator);
 		this._checkWave();
 	}
 
@@ -333,10 +328,10 @@ export default class Defiler {
 		}
 		this._deps = this._deps.filter(([dependent]) => !dependents.has(dependent));
 		for (const dependent of dependents) {
-			if (this._origData.has(<string>dependent)) {
-				this._processFile(this._origData.get(<string>dependent), 'retransform');
-			} else if (this._generators.has(<Symbol>dependent)) {
-				this._processGenerator(<Symbol>dependent);
+			if (typeof dependent === 'function') {
+				this._processGenerator(dependent);
+			} else if (this._origData.has(dependent)) {
+				this._processFile(this._origData.get(dependent), 'retransform');
 			}
 		}
 		this._checkWave();
@@ -389,7 +384,7 @@ interface Generator {
 	(): Promise<void>;
 }
 
-type Name = string | Symbol;
+type Name = string | Generator;
 
 interface OnError {
 	(
