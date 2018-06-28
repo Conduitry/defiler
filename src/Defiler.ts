@@ -27,12 +27,10 @@ export default class Defiler {
 	private _onerror: OnError;
 	// original paths of all files currently undergoing transformation and symbols of all generators currently running
 	private _active = new Set<Name>();
-	// original paths -> number of other files they're currently waiting on to exist
-	private _waitingFor = new Map<Name, number>();
 	// original paths -> { promise, resolve, paths } objects for when awaited files become available
-	private _whenFound = new Map<string, WhenFound>();
+	private _whenFound = new Map<string | Filter, WhenFound>();
 	// array of [dependent, dependency] pairs, specifying changes to which files should trigger re-processing which other files
-	private _deps: [Name, string | ((path: string) => boolean)][] = [];
+	private _deps: [Name, string | Filter][] = [];
 	// queue of pending Watcher events to handle
 	private _queue: [WatcherData, WatcherEvent][] = [];
 	// whether some Watcher event is currently already in the process of being handled
@@ -152,7 +150,7 @@ export default class Defiler {
 	// wait for a file to be available and retrieve it, marking dependencies as appropriate
 	async get(path: string): Promise<File>;
 	async get(paths: string[]): Promise<File[]>;
-	async get(filter: (path: string) => boolean): Promise<File[]>;
+	async get(filter: Filter): Promise<File[]>;
 	async get(_: any): Promise<any> {
 		if (typeof _ === 'string') {
 			_ = this.resolve(_);
@@ -169,11 +167,11 @@ export default class Defiler {
 		if (current) {
 			this._deps.push([current, _]);
 		}
-		if (typeof _ === 'function') {
-			return this.get([...this.paths].filter(_).sort());
-		}
-		if (this._status === Status.During && !this.files.has(_) && current) {
-			this._waitingFor.set(current, (this._waitingFor.get(current) || 0) + 1);
+		if (
+			this._status === Status.During &&
+			current &&
+			(typeof _ === 'function' || !this.files.has(_))
+		) {
 			if (this._whenFound.has(_)) {
 				const { promise, paths } = this._whenFound.get(_);
 				paths.push(current);
@@ -185,7 +183,9 @@ export default class Defiler {
 				await promise;
 			}
 		}
-		return this.files.get(_);
+		return typeof _ === 'function'
+			? this.get([...this.files.keys()].filter(_).sort())
+			: this.files.get(_);
 	}
 
 	// add a new virtual file
@@ -341,28 +341,39 @@ export default class Defiler {
 	private _checkWave(): void {
 		if (!this._active.size) {
 			this._endWave();
-		} else if (
-			this._status === Status.During &&
-			[...this._active].every(path => !!this._waitingFor.get(path))
-		) {
-			// all pending files are currently waiting for one or more other files to exist
-			// break deadlock: assume all files that have not appeared yet will never do so
-			for (const path of this._whenFound.keys()) {
-				if (!this._active.has(path)) {
-					this._markFound(path);
+		} else if (this._status === Status.During) {
+			const filterWaiting = new Set<Name>();
+			const allWaiting = new Set<Name>();
+			for (const [path, { paths }] of this._whenFound) {
+				if (typeof path === 'function' || this._active.has(path)) {
+					paths.forEach(path => filterWaiting.add(path));
+				}
+				paths.forEach(path => allWaiting.add(path));
+			}
+			if ([...this._active].every(path => filterWaiting.has(path))) {
+				// all pending files are currently waiting for a filter or another pending file
+				// break deadlock: assume all filters have found all they're going to find
+				for (const path of this._whenFound.keys()) {
+					if (typeof path === 'function') {
+						this._markFound(path);
+					}
+				}
+			} else if ([...this._active].every(path => allWaiting.has(path))) {
+				// all pending files are currently waiting for one or more other files to exist
+				// break deadlock: assume all files that have not appeared yet will never do so
+				for (const path of this._whenFound.keys()) {
+					if (typeof path === 'string' && !this._active.has(path)) {
+						this._markFound(path);
+					}
 				}
 			}
 		}
 	}
 
 	// mark a given awaited file as being found
-	private _markFound(path: string): void {
+	private _markFound(path: string | Filter): void {
 		if (this._whenFound.has(path)) {
-			const { resolve, paths } = this._whenFound.get(path);
-			for (const path of paths) {
-				this._waitingFor.set(path, this._waitingFor.get(path) - 1);
-			}
-			resolve();
+			this._whenFound.get(path).resolve();
 			this._whenFound.delete(path);
 		}
 	}
@@ -378,6 +389,10 @@ interface DefilerData {
 interface FileData {
 	path: string;
 	[propName: string]: any;
+}
+
+interface Filter {
+	(path: string): boolean;
 }
 
 interface Generator {
