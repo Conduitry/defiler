@@ -32,7 +32,7 @@
 		"@types/node": "*"
 	},
 	"scripts": {
-		"dev": "rollup -c -w",
-		"build": "rollup -c"
+		"dev": "rollup -c rollup/dev.js -w",
+		"build": "tsc && rollup -c rollup/prod.js"
 	}
 }
