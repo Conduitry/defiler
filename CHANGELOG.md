@@ -1,3 +1,7 @@
+# v0.18.0
+
+- `defiler.get(filter)` now also returns virtual files in addition to physical ones
+
 # v0.17.5
 
 - Some fixes to resolving in `defiler.get`, and also allow the user-supplied resolver to return an array or a filter function
