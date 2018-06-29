@@ -94,7 +94,7 @@ Returns a `Promise` that resolves when the initial wave of processing is complet
 
 ### `get(path)`
 
-Wait for a file or array of files to be ready and retrieve the `File` instance.
+Wait for a file to be ready and retrieve the `File` instance.
 
 - `path` - the path to wait for to become available and to then return
 
@@ -114,13 +114,13 @@ Returns a `Promise` resolving to an array of `File` instances.
 
 ### `get(filter)`
 
-Wait for all _physical_ files whose paths match a given filter function and retrieve the `File` instances.
+Wait for all files whose paths match a given filter function and retrieve the `File` instances.
 
 - `filter(path)` - a function that will be passed a path and should return a boolean
 
-Returns a `Promise` resolving to an array of matching `File` instances.
+Returns a `Promise` resolving to an array of matching `File` instances, sorted by their (original) paths.
 
-Note that only the paths of _physical_ files will be checked with your filter function. Once the initial wave of processing is complete, any new files matching the filter will also cause the generator or transform to be re-run.
+This will return physical and virtual files. Once the initial wave of processing is complete, any new files matching the filter will also cause the generator or transform to be re-run.
 
 ### `add(file)`
 

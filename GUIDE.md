@@ -37,6 +37,8 @@ The `defiler.get(path)` method, when used inside the transform, lets you depend 
 
 The `defiler.get` method can also be passed an array of (original) paths, in which case it will return a `Promise` resolving to an array of `File` instances (or `undefined`s).
 
+It can also be passed a filter function, which should accept a path and return a boolean. In this case `defiler.get` will return a `Promise` resolving to an array of all `File` instances whose (original) paths match the filter.
+
 See the [API docs](API.md#getpath) for more information.
 
 ## Virtual files
@@ -44,6 +46,8 @@ See the [API docs](API.md#getpath) for more information.
 During the transform's processing of a file, you can also create virtual files, which don't directly correspond one-to-one with physical files. The `Defiler` instance has a `defiler.add(file)` method, which you can pass a `File` instance to (or, more commonly, a POJO, which will be turned into a `File`). The virtual file will run through the transform and will thereafter be treated pretty much like a physical file. In particular, you can make other files depend on it with `defiler.get(path)`.
 
 Since Defiler has no way of knowing which virtual files will be created from transforming which files, when `defiler.get` is used to request a file that doesn't exist yet, Defiler waits until it does. Requesting a file that's never going to exist would cause a deadlock, so Defiler resolves this as a generalization of the above-mentioned deadlock resolution: If it ever happens that every in-process action is waiting for some other transformed file to exist, Defiler will resolve each of those pending `Promise`s returned by `defiler.get` to `undefined`.
+
+Similarly when retrieving files by a filter, there's no way to know which files will eventually exist. So Defiler will wait until all of the in-progress actions depend on filter responses or other in-progress files, at which point Defiler will resolve each pending filter `Promise` to the array of matching files that have been already completed in that moment.
 
 ## Generators
 
