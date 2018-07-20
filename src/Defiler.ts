@@ -90,7 +90,6 @@ export default class Defiler {
 				if (typeof debounce !== 'number') {
 					throw new TypeError('defiler: debounce must be a number');
 				}
-				dir = resolve(dir);
 				return <WatcherData>(
 					new Watcher({ dir, filter, read, enc, pre, watch, debounce })
 				);
@@ -114,6 +113,7 @@ export default class Defiler {
 		const files: [WatcherData, string, { path: string; stats: Stats }][] = [];
 		await Promise.all(
 			this._watchers.map(async watcher => {
+				watcher.dir = resolve(watcher.dir);
 				watcher.on('', event => this._enqueue(watcher, event));
 				// note that all files are pending transformation
 				await Promise.all(
