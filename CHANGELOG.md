@@ -1,3 +1,7 @@
+# v0.18.1
+
+- Defer resolving the `dir` passed to the `Defiler` constructor until `defiler.exec()` is called
+
 # v0.18.0
 
 - `defiler.get(filter)` now also returns virtual files in addition to physical ones
