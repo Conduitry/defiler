@@ -6,13 +6,13 @@ export default class Watcher extends EventEmitter {
 	dir: string;
 	filter: (file: { path: string; stats: Stats }) => boolean;
 	watch: boolean;
-	debounce: Number;
+	debounce: number;
 	// paths of all directories -> FSWatcher instances
 	private _watchers = new Map<string, FSWatcher>();
 	// paths of all files -> file stats
 	private _stats = new Map<string, Stats>();
 	// paths of files with pending debounced events -> setTimeout timer ids
-	private _timeouts = new Map<string, number>();
+	private _timeouts = new Map<string, NodeJS.Timer>();
 	// queue of pending FSWatcher events to handle
 	private _queue = new Array<string>();
 	// whether some FSWatcher event is currently already in the process of being handled
