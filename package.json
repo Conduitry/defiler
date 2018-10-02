@@ -32,8 +32,8 @@
 		"@types/node": "*"
 	},
 	"scripts": {
-		"build": "tsc && rollup -c rollup/prod.js",
-		"dev": "rollup -c rollup/dev.js -w",
+		"build": "tsc && rollup -c",
+		"dev": "rollup -cw",
 		"prepare": "npm run build"
 	}
 }
