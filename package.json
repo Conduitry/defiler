@@ -33,7 +33,6 @@
 	},
 	"scripts": {
 		"build": "tsc && rollup -c",
-		"dev": "rollup -cw",
-		"prepare": "npm run build"
+		"dev": "rollup -cw"
 	}
 }
