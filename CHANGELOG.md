@@ -1,3 +1,7 @@
+# v1.0.0
+
+- Git tag is now the built version, for easier direct installation without the npm registry
+
 # v0.18.1
 
 - Defer resolving the `dir` passed to the `Defiler` constructor until `defiler.exec()` is called
