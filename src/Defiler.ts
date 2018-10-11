@@ -1,10 +1,12 @@
-import { readFile } from './fs';
-import { Stats } from 'fs';
+import * as fs from 'fs';
 import { resolve } from 'path';
+import { promisify } from 'util';
 
 import File from './File';
 import Watcher, { WatcherEvent } from './Watcher';
 import * as context from './context';
+
+const readFile = promisify(fs.readFile);
 
 export default class Defiler {
 	// set of original paths for all physical files
@@ -39,16 +41,11 @@ export default class Defiler {
 	private _endWave: () => void = null;
 
 	constructor(...args: any[]) {
-		const { transform, generators = [], resolver, onerror } = <DefilerData>(
-			args.pop()
-		);
+		const { transform, generators = [], resolver, onerror } = <DefilerData>args.pop();
 		if (typeof transform !== 'function') {
 			throw new TypeError('defiler: transform must be a function');
 		}
-		if (
-			!Array.isArray(generators) ||
-			generators.some(generator => typeof generator !== 'function')
-		) {
+		if (!Array.isArray(generators) || generators.some(generator => typeof generator !== 'function')) {
 			throw new TypeError('defiler: generators must be an array of functions');
 		}
 		if (resolver && typeof resolver !== 'function') {
@@ -57,44 +54,30 @@ export default class Defiler {
 		if (onerror && typeof onerror !== 'function') {
 			throw new TypeError('defiler: onerror must be a function');
 		}
-		this._watchers = args.map(
-			({
-				dir,
-				filter,
-				read = true,
-				enc = 'utf8',
-				pre,
-				watch = true,
-				debounce = 10,
-			}) => {
-				if (typeof dir !== 'string') {
-					throw new TypeError('defiler: dir must be a string');
-				}
-				if (filter && typeof filter !== 'function') {
-					throw new TypeError('defiler: filter must be a function');
-				}
-				if (typeof read !== 'boolean' && typeof read !== 'function') {
-					throw new TypeError('defiler: read must be a boolean or a function');
-				}
-				if (!Buffer.isEncoding(enc) && typeof enc !== 'function') {
-					throw new TypeError(
-						'defiler: enc must be a supported encoding or a function',
-					);
-				}
-				if (pre && typeof pre !== 'function') {
-					throw new TypeError('defiler: pre must be a function');
-				}
-				if (typeof watch !== 'boolean') {
-					throw new TypeError('defiler: watch must be a boolean');
-				}
-				if (typeof debounce !== 'number') {
-					throw new TypeError('defiler: debounce must be a number');
-				}
-				return <WatcherData>(
-					new Watcher({ dir, filter, read, enc, pre, watch, debounce })
-				);
-			},
-		);
+		this._watchers = args.map(({ dir, filter, read = true, enc = 'utf8', pre, watch = true, debounce = 10 }) => {
+			if (typeof dir !== 'string') {
+				throw new TypeError('defiler: dir must be a string');
+			}
+			if (filter && typeof filter !== 'function') {
+				throw new TypeError('defiler: filter must be a function');
+			}
+			if (typeof read !== 'boolean' && typeof read !== 'function') {
+				throw new TypeError('defiler: read must be a boolean or a function');
+			}
+			if (!Buffer.isEncoding(enc) && typeof enc !== 'function') {
+				throw new TypeError('defiler: enc must be a supported encoding or a function');
+			}
+			if (pre && typeof pre !== 'function') {
+				throw new TypeError('defiler: pre must be a function');
+			}
+			if (typeof watch !== 'boolean') {
+				throw new TypeError('defiler: watch must be a boolean');
+			}
+			if (typeof debounce !== 'number') {
+				throw new TypeError('defiler: debounce must be a number');
+			}
+			return <WatcherData>new Watcher({ dir, filter, read, enc, pre, watch, debounce });
+		});
 		this._transform = transform;
 		this._generators = generators;
 		this._resolver = resolver;
@@ -110,7 +93,7 @@ export default class Defiler {
 		this._isProcessing = true;
 		const done = this._startWave();
 		// init the Watcher instances
-		const files: [WatcherData, string, { path: string; stats: Stats }][] = [];
+		const files: [WatcherData, string, { path: string; stats: fs.Stats }][] = [];
 		await Promise.all(
 			this._watchers.map(async watcher => {
 				watcher.dir = resolve(watcher.dir);
@@ -159,19 +142,13 @@ export default class Defiler {
 			return Promise.all(_.map(path => this.get(path)));
 		}
 		if (typeof _ !== 'string' && typeof _ !== 'function') {
-			throw new TypeError(
-				'defiler.get: argument must be a string, an array, or a function',
-			);
+			throw new TypeError('defiler.get: argument must be a string, an array, or a function');
 		}
 		const current = <Name>context.current();
 		if (current) {
 			this._deps.push([current, _]);
 		}
-		if (
-			this._status === Status.During &&
-			current &&
-			(typeof _ === 'function' || !this.files.has(_))
-		) {
+		if (this._status === Status.During && current && (typeof _ === 'function' || !this.files.has(_))) {
 			if (this._whenFound.has(_)) {
 				const { promise, paths } = this._whenFound.get(_);
 				paths.push(current);
@@ -183,9 +160,7 @@ export default class Defiler {
 				await promise;
 			}
 		}
-		return typeof _ === 'function'
-			? this.get([...this.files.keys()].filter(_).sort())
-			: this.files.get(_);
+		return typeof _ === 'function' ? this.get([...this.files.keys()].filter(_).sort()) : this.files.get(_);
 	}
 
 	// add a new virtual file
@@ -203,9 +178,7 @@ export default class Defiler {
 
 	// resolve a given path from the file currently being transformed
 	resolve(path: string): string {
-		return this._resolver && typeof context.current() === 'string'
-			? this._resolver(context.current(), path)
-			: path;
+		return this._resolver && typeof context.current() === 'string' ? this._resolver(context.current(), path) : path;
 	}
 
 	// private methods
@@ -216,10 +189,7 @@ export default class Defiler {
 	}
 
 	// add a Watcher event to the queue, and handle queued events
-	private async _enqueue(
-		watcher?: WatcherData,
-		event?: WatcherEvent,
-	): Promise<void> {
+	private async _enqueue(watcher?: WatcherData, event?: WatcherEvent): Promise<void> {
 		if (event) {
 			this._queue.push([watcher, event]);
 		}
@@ -251,11 +221,7 @@ export default class Defiler {
 	}
 
 	// create a file object for a physical file and process it
-	private async _processPhysicalFile(
-		{ dir, read, enc }: WatcherData,
-		path: string,
-		file: FileData,
-	): Promise<void> {
+	private async _processPhysicalFile({ dir, read, enc }: WatcherData, path: string, file: FileData): Promise<void> {
 		if (typeof read === 'function') {
 			read = await read({ path, stats: file.stats });
 		}
@@ -320,9 +286,7 @@ export default class Defiler {
 	private _processDependents(path: string): void {
 		const dependents = new Set<Name>();
 		for (const [dependent, dependency] of this._deps) {
-			if (
-				typeof dependency === 'string' ? dependency === path : dependency(path)
-			) {
+			if (typeof dependency === 'string' ? dependency === path : dependency(path)) {
 				dependents.add(dependent);
 			}
 		}
@@ -432,10 +396,8 @@ interface Transform {
 }
 
 interface WatcherData extends Watcher {
-	read: boolean | ((arg: { path: string; stats: Stats }) => Promise<boolean>);
-	enc:
-		| string
-		| ((arg: { path: string; stats: Stats; bytes: Buffer }) => Promise<string>);
+	read: boolean | ((arg: { path: string; stats: fs.Stats }) => Promise<boolean>);
+	enc: string | ((arg: { path: string; stats: fs.Stats; bytes: Buffer }) => Promise<string>);
 	pre: (data: FileData) => Promise<void>;
 }
 

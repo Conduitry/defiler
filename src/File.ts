@@ -1,4 +1,4 @@
-import { Stats } from 'fs';
+import * as fs from 'fs';
 
 export default class File {
 	// path of file
@@ -10,7 +10,7 @@ export default class File {
 	// cached ext
 	private _ext: string = null;
 	// stats of file
-	stats: Stats = null;
+	stats: fs.Stats = null;
 	// encoding
 	private _enc: string = 'utf8';
 	// Buffer of file contents
@@ -60,8 +60,7 @@ export default class File {
 			throw new TypeError('file.filename must be a string');
 		}
 		const old = this.filename;
-		this.path =
-			(old ? this._path.slice(0, -old.length) : this._path) + filename;
+		this.path = (old ? this._path.slice(0, -old.length) : this._path) + filename;
 	}
 
 	get ext(): string {
@@ -93,9 +92,7 @@ export default class File {
 	}
 
 	get bytes(): Buffer {
-		return this._bytes == null && this._text != null
-			? (this._bytes = Buffer.from(this._text, this._enc))
-			: this._bytes;
+		return this._bytes == null && this._text != null ? (this._bytes = Buffer.from(this._text, this._enc)) : this._bytes;
 	}
 
 	set bytes(bytes: Buffer) {
@@ -107,9 +104,7 @@ export default class File {
 	}
 
 	get text(): string {
-		return this._text == null && this._bytes != null
-			? (this._text = this._bytes.toString(this._enc))
-			: this._text;
+		return this._text == null && this._bytes != null ? (this._text = this._bytes.toString(this._enc)) : this._text;
 	}
 
 	set text(text: string) {

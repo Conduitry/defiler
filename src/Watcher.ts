@@ -1,20 +1,23 @@
 import * as EventEmitter from 'events';
-import { stat, readdir } from './fs';
-import { watch, FSWatcher, Stats } from 'fs';
+import * as fs from 'fs';
+import { promisify } from 'util';
+
+const readdir = promisify(fs.readdir);
+const stat = promisify(fs.stat);
 
 export default class Watcher extends EventEmitter {
 	dir: string;
-	filter: (file: { path: string; stats: Stats }) => boolean;
+	filter: (file: { path: string; stats: fs.Stats }) => boolean;
 	watch: boolean;
 	debounce: number;
 	// paths of all directories -> FSWatcher instances
-	private _watchers = new Map<string, FSWatcher>();
+	private _watchers = new Map<string, fs.FSWatcher>();
 	// paths of all files -> file stats
-	private _stats = new Map<string, Stats>();
+	private _stats = new Map<string, fs.Stats>();
 	// paths of files with pending debounced events -> setTimeout timer ids
 	private _timeouts = new Map<string, NodeJS.Timer>();
 	// queue of pending FSWatcher events to handle
-	private _queue = new Array<string>();
+	private _queue: string[] = [];
 	// whether some FSWatcher event is currently already in the process of being handled
 	private _isProcessing: boolean = false;
 
@@ -25,7 +28,7 @@ export default class Watcher extends EventEmitter {
 
 	// recurse directory, get stats, set up FSWatcher instances
 	// returns array of { path, stats }
-	async init(): Promise<{ path: string; stats: Stats }[]> {
+	async init(): Promise<{ path: string; stats: fs.Stats }[]> {
 		await this._recurse(this.dir);
 		return [...this._stats.entries()].map(([path, stats]) => ({
 			path,
@@ -44,11 +47,9 @@ export default class Watcher extends EventEmitter {
 			this._stats.set(path, stats);
 		} else if (stats.isDirectory()) {
 			if (this.watch) {
-				this._watchers.set(path, watch(full, this._handle.bind(this, full)));
+				this._watchers.set(path, fs.watch(full, this._handle.bind(this, full)));
 			}
-			await Promise.all(
-				(await readdir(full)).map(sub => this._recurse(full + '/' + sub)),
-			);
+			await Promise.all((await readdir(full)).map(sub => this._recurse(full + '/' + sub)));
 		}
 	}
 
@@ -125,5 +126,5 @@ export default class Watcher extends EventEmitter {
 export interface WatcherEvent {
 	event: string;
 	path: string;
-	stats?: Stats;
+	stats?: fs.Stats;
 }
