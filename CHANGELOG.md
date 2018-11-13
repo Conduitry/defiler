@@ -1,3 +1,7 @@
+# v1.0.1
+
+- Include TypeScript declaration file (`.d.ts`)
+
 # v1.0.0
 
 - Git tag is now the built version, for easier direct installation without the npm registry
