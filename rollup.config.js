@@ -11,6 +11,6 @@ export default {
 			sourcemap: true,
 			interop: false,
 		},
-		{ file: './dist/index.es.js', format: 'es', sourcemap: true },
+		{ file: './dist/index.esm.js', format: 'esm', sourcemap: true },
 	],
 };
