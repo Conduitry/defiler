@@ -13,13 +13,11 @@ Defiler is a build tool for people who find build tools interesting.
 
 ## Documentation
 
-- [guide](GUIDE.md#readme)
-- [api](API.md#readme)
-- [changelog](CHANGELOG.md#readme)
-- [homepage](https://conduitry.io/defiler)
+- [Guide](GUIDE.md)
+- [API Reference](API.md)
+- [Changelog](CHANGELOG.md)
+- [Homepage](https://conduitry.io/defiler)
 
 ## License
 
-Copyright (c) 2017-2018 Conduitry
-
-- [MIT](LICENSE)
+[MIT](LICENSE)
