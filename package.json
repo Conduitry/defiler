@@ -29,9 +29,9 @@
 	},
 	"homepage": "https://conduitry.io/defiler",
 	"devDependencies": {
-		"rollup": "*",
-		"rollup-plugin-cheap-ts": "Conduitry/rollup-plugin-cheap-ts#semver:*",
-		"typescript": "*",
+		"rollup": "^1",
+		"rollup-plugin-cheap-ts": "Conduitry/rollup-plugin-cheap-ts#semver:^1",
+		"typescript": "^3",
 		"@types/node": "*"
 	},
 	"scripts": {
