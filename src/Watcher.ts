@@ -19,7 +19,7 @@ export default class Watcher extends EventEmitter {
 	// queue of pending FSWatcher events to handle
 	private _queue: string[] = [];
 	// whether some FSWatcher event is currently already in the process of being handled
-	private _isProcessing: boolean = false;
+	private _is_processing: boolean = false;
 
 	constructor(data: object /* = { dir, filter, watch, debounce } */) {
 		super();
@@ -30,10 +30,7 @@ export default class Watcher extends EventEmitter {
 	// returns array of { path, stats }
 	async init(): Promise<{ path: string; stats: fs.Stats }[]> {
 		await this._recurse(this.dir);
-		return [...this._stats.entries()].map(([path, stats]) => ({
-			path,
-			stats,
-		}));
+		return [...this._stats.entries()].map(([path, stats]) => ({ path, stats }));
 	}
 
 	// recurse a given directory
@@ -71,10 +68,10 @@ export default class Watcher extends EventEmitter {
 	// add an FSWatcher event to the queue, and handle queued events
 	private async _enqueue(full: string): Promise<void> {
 		this._queue.push(full);
-		if (this._isProcessing) {
+		if (this._is_processing) {
 			return;
 		}
-		this._isProcessing = true;
+		this._is_processing = true;
 		while (this._queue.length) {
 			const full = this._queue.shift();
 			const path = full.slice(this.dir.length + 1);
@@ -90,9 +87,9 @@ export default class Watcher extends EventEmitter {
 				} else if (stats.isDirectory() && !this._watchers.has(path)) {
 					// note the new directory: start watching it, and report any files in it
 					await this._recurse(full);
-					for (const [newPath, stats] of this._stats.entries()) {
-						if (newPath.startsWith(path + '/')) {
-							this.emit('', { event: '+', path: newPath, stats });
+					for (const [new_path, stats] of this._stats.entries()) {
+						if (new_path.startsWith(path + '/')) {
+							this.emit('', { event: '+', path: new_path, stats });
 						}
 					}
 				}
@@ -119,7 +116,7 @@ export default class Watcher extends EventEmitter {
 				}
 			}
 		}
-		this._isProcessing = false;
+		this._is_processing = false;
 	}
 }
 

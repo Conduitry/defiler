@@ -12,7 +12,7 @@ export default class Defiler {
 	// set of original paths for all physical files
 	paths = new Set<string>();
 	// original paths -> original file data for all physical files ({ path, stats, bytes, enc })
-	private _origData = new Map<string, FileData>();
+	private _orig_data = new Map<string, FileData>();
 	// original paths -> transformed files for all physical and virtual files
 	files = new Map<string, File>();
 	// Before, During, or After exec has been called
@@ -30,15 +30,15 @@ export default class Defiler {
 	// original paths of all files currently undergoing transformation and symbols of all generators currently running
 	private _active = new Set<Name>();
 	// original paths -> { promise, resolve, paths } objects for when awaited files become available
-	private _whenFound = new Map<string | Filter, WhenFound>();
+	private _when_found = new Map<string | Filter, WhenFound>();
 	// array of [dependent, dependency] pairs, specifying changes to which files should trigger re-processing which other files
 	private _deps: [Name, string | Filter][] = [];
 	// queue of pending Watcher events to handle
 	private _queue: [WatcherData, WatcherEvent][] = [];
 	// whether some Watcher event is currently already in the process of being handled
-	private _isProcessing = false;
+	private _is_processing = false;
 	// end the current wave
-	private _endWave: () => void = null;
+	private _end_wave: () => void = null;
 
 	constructor(...args: any[]) {
 		const { transform, generators = [], resolver, onerror } = <DefilerData>args.pop();
@@ -90,8 +90,8 @@ export default class Defiler {
 			throw new Error('defiler.exec: cannot call more than once');
 		}
 		this._status = Status.During;
-		this._isProcessing = true;
-		const done = this._startWave();
+		this._is_processing = true;
+		const done = this._start_wave();
 		// init the Watcher instances
 		const files: [WatcherData, string, { path: string; stats: fs.Stats }][] = [];
 		await Promise.all(
@@ -117,16 +117,16 @@ export default class Defiler {
 		}
 		// process each physical file
 		for (const [watcher, path, file] of files) {
-			this._processPhysicalFile(watcher, path, file);
+			this._process_physical_file(watcher, path, file);
 		}
 		// process each generator
 		for (const generator of this._generators) {
-			this._processGenerator(generator);
+			this._process_generator(generator);
 		}
 		// wait and finish up
 		await done;
 		this._status = Status.After;
-		this._isProcessing = false;
+		this._is_processing = false;
 		this._enqueue();
 	}
 
@@ -149,14 +149,14 @@ export default class Defiler {
 			this._deps.push([current, _]);
 		}
 		if (this._status === Status.During && current && (typeof _ === 'function' || !this.files.has(_))) {
-			if (this._whenFound.has(_)) {
-				const { promise, paths } = this._whenFound.get(_);
+			if (this._when_found.has(_)) {
+				const { promise, paths } = this._when_found.get(_);
 				paths.push(current);
 				await promise;
 			} else {
 				let resolve;
 				const promise = new Promise<void>(res => (resolve = res));
-				this._whenFound.set(_, { promise, resolve, paths: [current] });
+				this._when_found.set(_, { promise, resolve, paths: [current] });
 				await promise;
 			}
 		}
@@ -172,8 +172,8 @@ export default class Defiler {
 			throw new TypeError('defiler.add: file must be an object');
 		}
 		file.path = this.resolve(file.path);
-		this._origData.set(file.path, file);
-		this._processFile(file, 'add');
+		this._orig_data.set(file.path, file);
+		this._process_file(file, 'add');
 	}
 
 	// resolve a given path from the file currently being transformed
@@ -184,8 +184,8 @@ export default class Defiler {
 	// private methods
 
 	// return a Promise that we will resolve at the end of this wave, and save its resolver
-	private _startWave(): Promise<void> {
-		return new Promise(res => (this._endWave = res));
+	private _start_wave(): Promise<void> {
+		return new Promise(res => (this._end_wave = res));
 	}
 
 	// add a Watcher event to the queue, and handle queued events
@@ -193,35 +193,35 @@ export default class Defiler {
 		if (event) {
 			this._queue.push([watcher, event]);
 		}
-		if (this._isProcessing) {
+		if (this._is_processing) {
 			return;
 		}
-		this._isProcessing = true;
+		this._is_processing = true;
 		while (this._queue.length) {
-			const done = this._startWave();
+			const done = this._start_wave();
 			const [watcher, { event, path, stats }] = this._queue.shift();
 			const file = { path, stats };
 			if (watcher.pre) {
 				await watcher.pre(file);
 			}
 			if (event === '+') {
-				this._processPhysicalFile(watcher, path, file);
+				this._process_physical_file(watcher, path, file);
 			} else if (event === '-') {
 				const { path } = file;
-				const oldFile = this.files.get(path);
+				const old_file = this.files.get(path);
 				this.paths.delete(path);
-				this._origData.delete(path);
+				this._orig_data.delete(path);
 				this.files.delete(path);
-				await this._callTransform(oldFile, 'delete');
-				this._processDependents(path);
+				await this._call_transform(old_file, 'delete');
+				this._process_dependents(path);
 			}
 			await done;
 		}
-		this._isProcessing = false;
+		this._is_processing = false;
 	}
 
 	// create a file object for a physical file and process it
-	private async _processPhysicalFile({ dir, read, enc }: WatcherData, path: string, file: FileData): Promise<void> {
+	private async _process_physical_file({ dir, read, enc }: WatcherData, path: string, file: FileData): Promise<void> {
 		if (typeof read === 'function') {
 			read = await read({ path, stats: file.stats });
 		}
@@ -233,28 +233,28 @@ export default class Defiler {
 		}
 		file.enc = enc;
 		this.paths.add(file.path);
-		this._origData.set(file.path, file);
-		await this._processFile(file, 'read');
+		this._orig_data.set(file.path, file);
+		await this._process_file(file, 'read');
 	}
 
 	// transform a file, store it, and process dependents
-	private async _processFile(data: FileData, event: string): Promise<void> {
+	private async _process_file(data: FileData, event: string): Promise<void> {
 		const file: File = Object.assign(new File(), data);
 		const { path } = file;
 		this._active.add(path);
-		await this._callTransform(file, event);
+		await this._call_transform(file, event);
 		this.files.set(path, file);
 		if (this._status === Status.During) {
-			this._markFound(path);
+			this._mark_found(path);
 		} else {
-			this._processDependents(path);
+			this._process_dependents(path);
 		}
 		this._active.delete(path);
-		this._checkWave();
+		this._check_wave();
 	}
 
 	// call the transform on a file with the given event string, and handle errors
-	private async _callTransform(file: File, event: string): Promise<void> {
+	private async _call_transform(file: File, event: string): Promise<void> {
 		await null;
 		context.create(file.path);
 		try {
@@ -267,7 +267,7 @@ export default class Defiler {
 	}
 
 	// run the generator given by the symbol
-	private async _processGenerator(generator: Generator): Promise<void> {
+	private async _process_generator(generator: Generator): Promise<void> {
 		this._active.add(generator);
 		await null;
 		context.create(generator);
@@ -279,11 +279,11 @@ export default class Defiler {
 			}
 		}
 		this._active.delete(generator);
-		this._checkWave();
+		this._check_wave();
 	}
 
 	// re-process all files that depend on a particular path
-	private _processDependents(path: string): void {
+	private _process_dependents(path: string): void {
 		const dependents = new Set<Name>();
 		for (const [dependent, dependency] of this._deps) {
 			if (typeof dependency === 'string' ? dependency === path : dependency(path)) {
@@ -293,41 +293,41 @@ export default class Defiler {
 		this._deps = this._deps.filter(([dependent]) => !dependents.has(dependent));
 		for (const dependent of dependents) {
 			if (typeof dependent === 'function') {
-				this._processGenerator(dependent);
-			} else if (this._origData.has(dependent)) {
-				this._processFile(this._origData.get(dependent), 'retransform');
+				this._process_generator(dependent);
+			} else if (this._orig_data.has(dependent)) {
+				this._process_file(this._orig_data.get(dependent), 'retransform');
 			}
 		}
-		this._checkWave();
+		this._check_wave();
 	}
 
 	// check whether this wave is complete, and, if not, whether we need to break a deadlock
-	private _checkWave(): void {
+	private _check_wave(): void {
 		if (!this._active.size) {
-			this._endWave();
+			this._end_wave();
 		} else if (this._status === Status.During) {
-			const filterWaiting = new Set<Name>();
-			const allWaiting = new Set<Name>();
-			for (const [path, { paths }] of this._whenFound) {
+			const filter_waiting = new Set<Name>();
+			const all_waiting = new Set<Name>();
+			for (const [path, { paths }] of this._when_found) {
 				if (typeof path === 'function' || this._active.has(path)) {
-					paths.forEach(path => filterWaiting.add(path));
+					paths.forEach(path => filter_waiting.add(path));
 				}
-				paths.forEach(path => allWaiting.add(path));
+				paths.forEach(path => all_waiting.add(path));
 			}
-			if ([...this._active].every(path => filterWaiting.has(path))) {
+			if ([...this._active].every(path => filter_waiting.has(path))) {
 				// all pending files are currently waiting for a filter or another pending file
 				// break deadlock: assume all filters have found all they're going to find
-				for (const path of this._whenFound.keys()) {
+				for (const path of this._when_found.keys()) {
 					if (typeof path === 'function') {
-						this._markFound(path);
+						this._mark_found(path);
 					}
 				}
-			} else if ([...this._active].every(path => allWaiting.has(path))) {
+			} else if ([...this._active].every(path => all_waiting.has(path))) {
 				// all pending files are currently waiting for one or more other files to exist
 				// break deadlock: assume all files that have not appeared yet will never do so
-				for (const path of this._whenFound.keys()) {
+				for (const path of this._when_found.keys()) {
 					if (typeof path === 'string' && !this._active.has(path)) {
-						this._markFound(path);
+						this._mark_found(path);
 					}
 				}
 			}
@@ -335,10 +335,10 @@ export default class Defiler {
 	}
 
 	// mark a given awaited file as being found
-	private _markFound(path: string | Filter): void {
-		if (this._whenFound.has(path)) {
-			this._whenFound.get(path).resolve();
-			this._whenFound.delete(path);
+	private _mark_found(path: string | Filter): void {
+		if (this._when_found.has(path)) {
+			this._when_found.get(path).resolve();
+			this._when_found.delete(path);
 		}
 	}
 }
@@ -352,7 +352,7 @@ interface DefilerData {
 
 interface FileData {
 	path: string;
-	[propName: string]: any;
+	[prop: string]: any;
 }
 
 interface Filter {
@@ -366,14 +366,7 @@ interface Generator {
 type Name = string | Generator;
 
 interface OnError {
-	(
-		arg: {
-			file?: any;
-			event?: string;
-			generator?: Generator;
-			error: Error;
-		},
-	): void;
+	(arg: { file?: any; event?: string; generator?: Generator; error: Error }): void;
 }
 
 interface Resolver {
@@ -387,12 +380,7 @@ const enum Status {
 }
 
 interface Transform {
-	(
-		arg: {
-			file: File;
-			event: string;
-		},
-	): Promise<void>;
+	(arg: { file: File; event: string }): Promise<void>;
 }
 
 interface WatcherData extends Watcher {
