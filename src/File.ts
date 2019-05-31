@@ -12,7 +12,7 @@ export default class File {
 	// stats of file
 	stats: fs.Stats = null;
 	// encoding
-	private _enc: string = 'utf8';
+	private _enc: BufferEncoding = 'utf8';
 	// Buffer of file contents
 	private _bytes: Buffer = null;
 	// string of file contents
@@ -80,11 +80,11 @@ export default class File {
 		this.path = (old ? this._path.slice(0, -old.length) : this._path) + ext;
 	}
 
-	get enc(): string {
+	get enc(): BufferEncoding {
 		return this._enc;
 	}
 
-	set enc(enc: string) {
+	set enc(enc: BufferEncoding) {
 		if (!Buffer.isEncoding(enc)) {
 			throw new TypeError('file.enc must be a supported encoding');
 		}

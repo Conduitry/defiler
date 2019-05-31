@@ -18,7 +18,7 @@ export class File {
 	dir: string;
 	filename: string;
 	ext: string;
-	enc: string;
+	enc: BufferEncoding;
 	bytes: Buffer;
 	text: string;
 }
