@@ -1,3 +1,7 @@
+# v1.0.2
+
+- Lazily enable async hook and disable it when possible
+
 # v1.0.1
 
 - Include TypeScript declaration file (`.d.ts`)
