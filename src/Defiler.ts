@@ -86,6 +86,7 @@ export default class Defiler {
 
 	// execute everything, and return a promise that resolves when the first wave of processing is complete
 	async exec(): Promise<void> {
+		context.ref();
 		if (this._status !== Status.Before) {
 			throw new Error('defiler.exec: cannot call more than once');
 		}
@@ -127,7 +128,11 @@ export default class Defiler {
 		await done;
 		this._status = Status.After;
 		this._is_processing = false;
-		this._enqueue();
+		if (this._watchers.some(watcher => watcher.watch)) {
+			this._enqueue();
+		} else {
+			context.unref();
+		}
 	}
 
 	// wait for a file to be available and retrieve it, marking dependencies as appropriate
