@@ -1,7 +1,7 @@
 import cheap_ts from 'rollup-plugin-cheap-ts';
 
 export default {
-	input: 'src/index',
+	input: './src/index',
 	external: name => /^[a-z]/.test(name),
 	plugins: [cheap_ts()],
 	output: [
