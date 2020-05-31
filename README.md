@@ -16,7 +16,7 @@ Defiler is a build tool for people who find build tools interesting.
 - [Guide](GUIDE.md)
 - [API Reference](API.md)
 - [Changelog](CHANGELOG.md)
-- [Homepage](https://cndtr.dev/defiler)
+- [Homepage](https://conduitry.dev/defiler)
 
 ## License
 

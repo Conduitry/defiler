@@ -27,7 +27,7 @@
 	"bugs": {
 		"url": "https://github.com/Conduitry/defiler/issues"
 	},
-	"homepage": "https://cndtr.dev/defiler",
+	"homepage": "https://conduitry.dev/defiler",
 	"devDependencies": {
 		"rollup": "^2",
 		"rollup-plugin-cheap-ts": "Conduitry/rollup-plugin-cheap-ts#semver:^1",
