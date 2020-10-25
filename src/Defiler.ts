@@ -1,10 +1,10 @@
+import { AsyncLocalStorage } from 'async_hooks';
 import * as fs from 'fs';
 import { resolve } from 'path';
 import { promisify } from 'util';
 
 import File from './File';
 import Watcher, { WatcherEvent } from './Watcher';
-import * as context from './context';
 
 const readFile = promisify(fs.readFile);
 
@@ -17,6 +17,8 @@ export default class Defiler {
 	files = new Map<string, File>();
 	// Before, During, or After exec has been called
 	private _status = Status.Before;
+	// AsyncLocalStorage instance for tracking call stack contexts and dependencies
+	private _context = new AsyncLocalStorage<Name>();
 	// Watcher instances
 	private _watchers: WatcherData[];
 	// the transform to run on all files
@@ -86,7 +88,6 @@ export default class Defiler {
 
 	// execute everything, and return a promise that resolves when the first wave of processing is complete
 	async exec(): Promise<void> {
-		context.ref();
 		if (this._status !== Status.Before) {
 			throw new Error('defiler.exec: cannot call more than once');
 		}
@@ -130,8 +131,6 @@ export default class Defiler {
 		this._is_processing = false;
 		if (this._watchers.some((watcher) => watcher.watch)) {
 			this._enqueue();
-		} else {
-			context.unref();
 		}
 	}
 
@@ -149,7 +148,7 @@ export default class Defiler {
 		if (typeof _ !== 'string' && typeof _ !== 'function') {
 			throw new TypeError('defiler.get: argument must be a string, an array, or a function');
 		}
-		const current = <Name>context.current();
+		const current = this._context.getStore();
 		if (current) {
 			this._deps.push([current, _]);
 		}
@@ -183,7 +182,9 @@ export default class Defiler {
 
 	// resolve a given path from the file currently being transformed
 	resolve(path: string): string {
-		return this._resolver && typeof context.current() === 'string' ? this._resolver(context.current(), path) : path;
+		return this._resolver && typeof this._context.getStore() === 'string'
+			? this._resolver(<string>this._context.getStore(), path)
+			: path;
 	}
 
 	// private methods
@@ -260,10 +261,8 @@ export default class Defiler {
 
 	// call the transform on a file with the given event string, and handle errors
 	private async _call_transform(file: File, event: string): Promise<void> {
-		await null;
-		context.create(file.path);
 		try {
-			await this._transform({ file, event });
+			await this._context.run(file.path, () => this._transform({ file, event }));
 		} catch (error) {
 			if (this._onerror) {
 				this._onerror({ file, event, error });
@@ -274,10 +273,8 @@ export default class Defiler {
 	// run the generator given by the symbol
 	private async _process_generator(generator: Generator): Promise<void> {
 		this._active.add(generator);
-		await null;
-		context.create(generator);
 		try {
-			await generator();
+			await this._context.run(generator, generator);
 		} catch (error) {
 			if (this._onerror) {
 				this._onerror({ generator, error });
