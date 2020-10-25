@@ -45,7 +45,7 @@ export default class Defiler {
 		if (typeof transform !== 'function') {
 			throw new TypeError('defiler: transform must be a function');
 		}
-		if (!Array.isArray(generators) || generators.some(generator => typeof generator !== 'function')) {
+		if (!Array.isArray(generators) || generators.some((generator) => typeof generator !== 'function')) {
 			throw new TypeError('defiler: generators must be an array of functions');
 		}
 		if (resolver && typeof resolver !== 'function') {
@@ -96,12 +96,12 @@ export default class Defiler {
 		// init the Watcher instances
 		const files: [WatcherData, string, { path: string; stats: fs.Stats }][] = [];
 		await Promise.all(
-			this._watchers.map(async watcher => {
+			this._watchers.map(async (watcher) => {
 				watcher.dir = resolve(watcher.dir);
-				watcher.on('', event => this._enqueue(watcher, event));
+				watcher.on('', (event) => this._enqueue(watcher, event));
 				// note that all files are pending transformation
 				await Promise.all(
-					(await watcher.init()).map(async file => {
+					(await watcher.init()).map(async (file) => {
 						const { path } = file;
 						if (watcher.pre) {
 							await watcher.pre(file);
@@ -128,7 +128,7 @@ export default class Defiler {
 		await done;
 		this._status = Status.After;
 		this._is_processing = false;
-		if (this._watchers.some(watcher => watcher.watch)) {
+		if (this._watchers.some((watcher) => watcher.watch)) {
 			this._enqueue();
 		} else {
 			context.unref();
@@ -144,7 +144,7 @@ export default class Defiler {
 			_ = this.resolve(_);
 		}
 		if (Array.isArray(_)) {
-			return Promise.all(_.map(path => this.get(path)));
+			return Promise.all(_.map((path) => this.get(path)));
 		}
 		if (typeof _ !== 'string' && typeof _ !== 'function') {
 			throw new TypeError('defiler.get: argument must be a string, an array, or a function');
@@ -160,7 +160,7 @@ export default class Defiler {
 				await promise;
 			} else {
 				let resolve;
-				const promise = new Promise<void>(res => (resolve = res));
+				const promise = new Promise<void>((res) => (resolve = res));
 				this._when_found.set(_, { promise, resolve, paths: [current] });
 				await promise;
 			}
@@ -190,7 +190,7 @@ export default class Defiler {
 
 	// return a Promise that we will resolve at the end of this wave, and save its resolver
 	private _start_wave(): Promise<void> {
-		return new Promise(res => (this._end_wave = res));
+		return new Promise((res) => (this._end_wave = res));
 	}
 
 	// add a Watcher event to the queue, and handle queued events
@@ -315,11 +315,11 @@ export default class Defiler {
 			const all_waiting = new Set<Name>();
 			for (const [path, { paths }] of this._when_found) {
 				if (typeof path === 'function' || this._active.has(path)) {
-					paths.forEach(path => filter_waiting.add(path));
+					paths.forEach((path) => filter_waiting.add(path));
 				}
-				paths.forEach(path => all_waiting.add(path));
+				paths.forEach((path) => all_waiting.add(path));
 			}
-			if ([...this._active].every(path => filter_waiting.has(path))) {
+			if ([...this._active].every((path) => filter_waiting.has(path))) {
 				// all pending files are currently waiting for a filter or another pending file
 				// break deadlock: assume all filters have found all they're going to find
 				for (const path of this._when_found.keys()) {
@@ -327,7 +327,7 @@ export default class Defiler {
 						this._mark_found(path);
 					}
 				}
-			} else if ([...this._active].every(path => all_waiting.has(path))) {
+			} else if ([...this._active].every((path) => all_waiting.has(path))) {
 				// all pending files are currently waiting for one or more other files to exist
 				// break deadlock: assume all files that have not appeared yet will never do so
 				for (const path of this._when_found.keys()) {

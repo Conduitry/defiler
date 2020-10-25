@@ -46,7 +46,7 @@ export default class Watcher extends EventEmitter {
 			if (this.watch) {
 				this._watchers.set(path, fs.watch(full, this._handle.bind(this, full)));
 			}
-			await Promise.all((await readdir(full)).map(sub => this._recurse(full + '/' + sub)));
+			await Promise.all((await readdir(full)).map((sub) => this._recurse(full + '/' + sub)));
 		}
 	}
 

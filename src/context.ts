@@ -4,7 +4,7 @@ const contexts = new Map<Number, any>();
 
 const hook = createHook({
 	init: (id, _, trigger) => contexts.set(id, contexts.get(trigger)),
-	destroy: id => contexts.delete(id),
+	destroy: (id) => contexts.delete(id),
 });
 
 let refs = 0;
