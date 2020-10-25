@@ -1,3 +1,9 @@
+# v2.0.0
+
+- Require Node 12.17+ for native `AsyncLocalStorage`
+- Use `AsyncLocalStorage` for context tracking, rather than hacky custom solution
+- Fix dependencies fetched during generators not being attached back to the generator
+
 # v1.0.2
 
 - Lazily enable async hook and disable it when possible
