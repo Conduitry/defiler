@@ -1,9 +1,5 @@
 import * as EventEmitter from 'events';
 import * as fs from 'fs';
-import { promisify } from 'util';
-
-const readdir = promisify(fs.readdir);
-const stat = promisify(fs.stat);
 
 export default class Watcher extends EventEmitter {
 	dir: string;
@@ -36,7 +32,7 @@ export default class Watcher extends EventEmitter {
 	// recurse a given directory
 	private async _recurse(full: string): Promise<void> {
 		const path = full.slice(this.dir.length + 1);
-		const stats = await stat(full);
+		const stats = await fs.promises.stat(full);
 		if (this.filter && !(await this.filter({ path, stats }))) {
 			return;
 		}
@@ -46,7 +42,7 @@ export default class Watcher extends EventEmitter {
 			if (this.watch) {
 				this._watchers.set(path, fs.watch(full, this._handle.bind(this, full)));
 			}
-			await Promise.all((await readdir(full)).map((sub) => this._recurse(full + '/' + sub)));
+			await Promise.all((await fs.promises.readdir(full)).map((sub) => this._recurse(full + '/' + sub)));
 		}
 	}
 
@@ -76,7 +72,7 @@ export default class Watcher extends EventEmitter {
 			const full = this._queue.shift();
 			const path = full.slice(this.dir.length + 1);
 			try {
-				const stats = await stat(full);
+				const stats = await fs.promises.stat(full);
 				if (this.filter && !(await this.filter({ path, stats }))) {
 					continue;
 				}

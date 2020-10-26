@@ -1,12 +1,9 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import * as fs from 'fs';
 import { resolve } from 'path';
-import { promisify } from 'util';
 
 import File from './File';
 import Watcher, { WatcherEvent } from './Watcher';
-
-const readFile = promisify(fs.readFile);
 
 export default class Defiler {
 	// set of original paths for all physical files
@@ -232,7 +229,7 @@ export default class Defiler {
 			read = await read({ path, stats: file.stats });
 		}
 		if (read) {
-			file.bytes = await readFile(dir + '/' + path);
+			file.bytes = await fs.promises.readFile(dir + '/' + path);
 		}
 		if (typeof enc === 'function') {
 			enc = await enc({ path, stats: file.stats, bytes: file.bytes });
