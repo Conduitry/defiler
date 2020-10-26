@@ -179,9 +179,13 @@ export default class Defiler {
 
 	// resolve a given path from the file currently being transformed
 	resolve(path: string): string {
-		return this._resolver && typeof this._context.getStore() === 'string'
-			? this._resolver(<string>this._context.getStore(), path)
-			: path;
+		if (this._resolver) {
+			const current = this._context.getStore();
+			if (typeof current === 'string') {
+				return this._resolver(current, path);
+			}
+		}
+		return path;
 	}
 
 	// private methods
