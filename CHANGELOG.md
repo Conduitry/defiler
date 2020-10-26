@@ -1,3 +1,7 @@
+# v2.0.2
+
+- Include documentation files in published package
+
 # v2.0.1
 
 - Make `pkg.engines.node` supported versions range more correct and strict
