@@ -8,7 +8,7 @@ Defiler is a build tool for people who find build tools interesting.
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) 12.17+
+- [Node.js](https://nodejs.org/) 12.17+/13.10+/14+ (any version that includes `async_hooks.AsyncLocalStorage`)
 - Insanity
 
 ## Documentation
