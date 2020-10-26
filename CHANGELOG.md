@@ -1,3 +1,7 @@
+# v2.0.1
+
+- Make `pkg.engines.node` supported versions range more correct and strict
+
 # v2.0.0
 
 - Require Node 12.17+ for native `AsyncLocalStorage`
