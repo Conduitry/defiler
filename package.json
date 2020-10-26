@@ -16,7 +16,7 @@
 		"types"
 	],
 	"engines": {
-		"node": ">=12.17"
+		"node": "^12.17 || >=13.10"
 	},
 	"repository": {
 		"type": "git",
