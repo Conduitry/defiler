@@ -8,7 +8,7 @@ export class Defiler {
 	get(path: string): Promise<File>;
 	get(paths: string[]): Promise<File[]>;
 	get(filter: Filter): Promise<File[]>;
-	add(file: FileData): void;
+	add(file: FileData): Promise<void>;
 	resolve(path: string): string;
 }
 
