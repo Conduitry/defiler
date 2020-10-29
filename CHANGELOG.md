@@ -1,3 +1,7 @@
+# v2.1.1
+
+- Fix published types for `defiler.add(file)`
+
 # v2.1.0
 
 - Return a `Promise` from `defiler.add(file)` indicating when processing is complete
