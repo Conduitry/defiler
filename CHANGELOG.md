@@ -1,3 +1,7 @@
+# v2.1.0
+
+- Return a `Promise` from `defiler.add(file)` indicating when processing is complete
+
 # v2.0.2
 
 - Include documentation files in published package
