@@ -165,7 +165,7 @@ export default class Defiler {
 	}
 
 	// add a new virtual file
-	add(file: FileData): void {
+	add(file: FileData): Promise<void> {
 		if (this._status === Status.Before) {
 			throw new Error('defiler.add: cannot call before calling exec');
 		}
@@ -174,7 +174,7 @@ export default class Defiler {
 		}
 		file.path = this.resolve(file.path);
 		this._orig_data.set(file.path, file);
-		this._process_file(file, 'add');
+		return this._process_file(file, 'add');
 	}
 
 	// resolve a given path from the file currently being transformed
