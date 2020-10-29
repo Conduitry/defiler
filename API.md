@@ -128,6 +128,8 @@ Manually insert a virtual `File`, running it through the transform.
 
 - `file` - the file data of the virtual file to add
 
+Returns a `Promise` resolving when the file has been completely processed. (However, there is generally not a need to wait for this `Promise` to resolve. Processing the added files will proceed in parallel, and dependence relationships between files will be maintained.)
+
 The object does not need to be a `File` instance, and in fact there is no benefit to doing so. A new `File` instance is always created with properties `Object.assign`ed from `file`.
 
 ### `resolve(path)`
