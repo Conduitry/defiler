@@ -350,7 +350,7 @@ export default class Defiler {
 }
 
 /**
- * @typedef {object} DefilerData
+ * @typedef {Object} DefilerData
  * @property {Transform} transform
  * @property {Generator[]} generators
  * @property {Resolver} resolver
@@ -358,10 +358,9 @@ export default class Defiler {
  */
 
 /**
- * @typedef {object} FileData
+ * @typedef {Object} FileData
  * @property {string} path
  */
-// TODO: [prop: string]: any
 
 /** @typedef {(path: string) => boolean} Filter */
 
@@ -383,23 +382,23 @@ const Status = {
 /** @typedef {(arg: { file: File; event: string }) => Promise<void>} Transform */
 
 /**
- * @typedef {object} WatcherData
- * @extends Watcher
+ * @typedef {Object} ExtraWatcherData
  * @property {boolean | ((arg: { path: string; stats: fs.Stats }) => Promise<boolean>)} read
  * @property {((arg: { path: string; stats: fs.Stats; bytes: Buffer }) => Promise<string>)} enc
  * @property {(data: FileData) => Promise<void>} pre
+ *
+ * @typedef {Watcher & ExtraWatcherData} WatcherData
  */
-// TODO fix this
 
 /**
- * @typedef {object} WatcherEvent
+ * @typedef {Object} WatcherEvent
  * @property {string} event
  * @property {string} path
  * @property {fs.Stats} stats
  */
 
 /**
- * @typedef {object} WhenFound
+ * @typedef {Object} WhenFound
  * @property {Promise<void>} promise
  * @property {() => void} resolve
  * @property {Name[]} paths

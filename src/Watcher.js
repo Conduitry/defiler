@@ -17,7 +17,7 @@ export default class Watcher extends EventEmitter {
 	// whether some FSWatcher event is currently already in the process of being handled
 	/** @type {boolean} */ #is_processing = false;
 
-	constructor(/** @type {object} */ data /* = { dir, filter, watch, debounce } */) {
+	constructor(/** @type {Object} */ data /* = { dir, filter, watch, debounce } */) {
 		super();
 		Object.assign(this, data);
 	}
