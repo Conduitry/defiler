@@ -2,27 +2,27 @@ import * as fs from 'fs';
 
 export default class File {
 	// path of file
-	private _path: string = null;
+	/** @type {string} */ _path = null;
 	// cached dir
-	private _dir: string = null;
+	/** @type {string} */ _dir = null;
 	// cached filename
-	private _filename: string = null;
+	/** @type {string} */ _filename = null;
 	// cached ext
-	private _ext: string = null;
+	/** @type {string} */ _ext = null;
 	// stats of file
-	stats: fs.Stats = null;
+	/** @type {fs.Stats} */ stats = null;
 	// encoding
-	private _enc: BufferEncoding = 'utf8';
+	/** @type {BufferEncoding} */ _enc = 'utf8';
 	// Buffer of file contents
-	private _bytes: Buffer = null;
+	/** @type {Buffer} */ _bytes = null;
 	// string of file contents
-	private _text: string = null;
+	/** @type {string} */ _text = null;
 
-	get path(): string {
+	get path() {
 		return this._path;
 	}
 
-	set path(path: string) {
+	set path(path) {
 		if (typeof path !== 'string') {
 			throw new TypeError('file.path must be a string');
 		}
@@ -32,7 +32,7 @@ export default class File {
 		}
 	}
 
-	get dir(): string {
+	get dir() {
 		if (this._dir == null) {
 			const p = this._path.lastIndexOf('/');
 			this._dir = p > -1 ? this._path.slice(0, p) : '';
@@ -40,14 +40,14 @@ export default class File {
 		return this._dir;
 	}
 
-	set dir(dir: string) {
+	set dir(dir) {
 		if (typeof dir !== 'string') {
 			throw new TypeError('file.dir must be a string');
 		}
 		this.path = (dir ? dir + '/' : '') + this.filename;
 	}
 
-	get filename(): string {
+	get filename() {
 		if (this._filename == null) {
 			const p = this._path.lastIndexOf('/');
 			this._filename = p > -1 ? this._path.slice(p + 1) : this._path;
@@ -63,7 +63,7 @@ export default class File {
 		this.path = (old ? this._path.slice(0, -old.length) : this._path) + filename;
 	}
 
-	get ext(): string {
+	get ext() {
 		if (this._ext == null) {
 			const p1 = this._path.lastIndexOf('.');
 			const p2 = this._path.lastIndexOf('/');
@@ -72,7 +72,7 @@ export default class File {
 		return this._ext;
 	}
 
-	set ext(ext: string) {
+	set ext(ext) {
 		if (typeof ext !== 'string') {
 			throw new TypeError('file.ext must be a string');
 		}
@@ -80,22 +80,22 @@ export default class File {
 		this.path = (old ? this._path.slice(0, -old.length) : this._path) + ext;
 	}
 
-	get enc(): BufferEncoding {
+	get enc() {
 		return this._enc;
 	}
 
-	set enc(enc: BufferEncoding) {
+	set enc(enc) {
 		if (!Buffer.isEncoding(enc)) {
 			throw new TypeError('file.enc must be a supported encoding');
 		}
 		this._enc = enc;
 	}
 
-	get bytes(): Buffer {
+	get bytes() {
 		return this._bytes == null && this._text != null ? (this._bytes = Buffer.from(this._text, this._enc)) : this._bytes;
 	}
 
-	set bytes(bytes: Buffer) {
+	set bytes(bytes) {
 		if (bytes != null && !Buffer.isBuffer(bytes)) {
 			throw new TypeError('file.bytes must be a Buffer or null');
 		}
@@ -103,11 +103,11 @@ export default class File {
 		this._text = null;
 	}
 
-	get text(): string {
+	get text() {
 		return this._text == null && this._bytes != null ? (this._text = this._bytes.toString(this._enc)) : this._text;
 	}
 
-	set text(text: string) {
+	set text(text) {
 		if (text != null && typeof text !== 'string') {
 			throw new TypeError('file.text must be a string or null');
 		}

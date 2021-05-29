@@ -2,45 +2,45 @@ import { AsyncLocalStorage } from 'async_hooks';
 import * as fs from 'fs';
 import { resolve } from 'path';
 
-import File from './File';
-import Watcher, { WatcherEvent } from './Watcher';
+import File from './File.js';
+import Watcher from './Watcher.js';
 
 export default class Defiler {
 	// set of original paths for all physical files
-	paths = new Set<string>();
+	/** @type {Set<string>} */ paths = new Set();
 	// original paths -> original file data for all physical files ({ path, stats, bytes, enc })
-	private _orig_data = new Map<string, FileData>();
+	/** @type {Map<string, FileData>} */ _orig_data = new Map();
 	// original paths -> transformed files for all physical and virtual files
-	files = new Map<string, File>();
+	/** @type {Map<string, File>} */ files = new Map();
 	// Before, During, or After exec has been called
-	private _status = Status.Before;
+	/** @type {Status} */ _status = Status.Before;
 	// AsyncLocalStorage instance for tracking call stack contexts and dependencies
-	private _context = new AsyncLocalStorage<Name>();
+	/** @type {AsyncLocalStorage<Name>} */ _context = new AsyncLocalStorage();
 	// Watcher instances
-	private _watchers: WatcherData[];
+	/** @type {WatcherData[]} */ _watchers;
 	// the transform to run on all files
-	private _transform: Transform;
+	/** @type {Transform} */ _transform;
 	// registered generators
-	private _generators: Generator[];
+	/** @type {Generator[]} */ _generators;
 	// (base, path) => path resolver function, used in defiler.get and defiler.add from transform
-	private _resolver: Resolver;
+	/** @type {Resolver} */ _resolver;
 	// handler to call when errors occur
-	private _onerror: OnError;
+	/** @type {OnError} */ _onerror;
 	// original paths of all files currently undergoing transformation and symbols of all generators currently running
-	private _active = new Set<Name>();
+	/** @type {Set<Name>} */ _active = new Set();
 	// original paths -> { promise, resolve, paths } objects for when awaited files become available
-	private _when_found = new Map<string | Filter, WhenFound>();
+	/** @type {Map<string | Filter, WhenFound>} */ _when_found = new Map();
 	// array of [dependent, dependency] pairs, specifying changes to which files should trigger re-processing which other files
-	private _deps: [Name, string | Filter][] = [];
+	/** @type {[Name, string | Filter][]} */ _deps = [];
 	// queue of pending Watcher events to handle
-	private _queue: [WatcherData, WatcherEvent][] = [];
+	/** @type {[WatcherData, WatcherEvent][]} */ _queue = [];
 	// whether some Watcher event is currently already in the process of being handled
-	private _is_processing = false;
+	/** @type {boolean} */ _is_processing = false;
 	// end the current wave
-	private _end_wave: () => void = null;
+	/** @type {() => void} */ _end_wave = null;
 
-	constructor(...args: any[]) {
-		const { transform, generators = [], resolver, onerror } = <DefilerData>args.pop();
+	constructor(...args) {
+		const { transform, generators = [], resolver, onerror } = /** @type {DefilerData} */ (args.pop());
 		if (typeof transform !== 'function') {
 			throw new TypeError('defiler: transform must be a function');
 		}
@@ -75,7 +75,7 @@ export default class Defiler {
 			if (typeof debounce !== 'number') {
 				throw new TypeError('defiler: debounce must be a number');
 			}
-			return <WatcherData>new Watcher({ dir, filter, read, enc, pre, watch, debounce });
+			return /** @type {WatcherData} */ (new Watcher({ dir, filter, read, enc, pre, watch, debounce }));
 		});
 		this._transform = transform;
 		this._generators = generators;
@@ -84,7 +84,7 @@ export default class Defiler {
 	}
 
 	// execute everything, and return a promise that resolves when the first wave of processing is complete
-	async exec(): Promise<void> {
+	async exec() {
 		if (this._status !== Status.Before) {
 			throw new Error('defiler.exec: cannot call more than once');
 		}
@@ -92,14 +92,16 @@ export default class Defiler {
 		this._is_processing = true;
 		const done = this._start_wave();
 		// init the Watcher instances
-		const files: [WatcherData, string, { path: string; stats: fs.Stats }][] = [];
+		/** @type {[WatcherData, string, { path: string; stats: fs.Stats }][]} */ const files = [];
 		await Promise.all(
 			this._watchers.map(async (watcher) => {
 				watcher.dir = resolve(watcher.dir);
 				watcher.on('', (event) => this._enqueue(watcher, event));
 				// note that all files are pending transformation
 				await Promise.all(
-					(await watcher.init()).map(async (file) => {
+					(
+						await watcher.init()
+					).map(async (file) => {
 						const { path } = file;
 						if (watcher.pre) {
 							await watcher.pre(file);
@@ -132,10 +134,7 @@ export default class Defiler {
 	}
 
 	// wait for a file to be available and retrieve it, marking dependencies as appropriate
-	async get(path: string): Promise<File>;
-	async get(paths: string[]): Promise<File[]>;
-	async get(filter: Filter): Promise<File[]>;
-	async get(_: any): Promise<any> {
+	async get(_) {
 		if (typeof _ === 'string') {
 			_ = this.resolve(_);
 		}
@@ -156,7 +155,7 @@ export default class Defiler {
 				await promise;
 			} else {
 				let resolve;
-				const promise = new Promise<void>((res) => (resolve = res));
+				/** @type {Promise<void>} */ const promise = new Promise((res) => (resolve = res));
 				this._when_found.set(_, { promise, resolve, paths: [current] });
 				await promise;
 			}
@@ -165,7 +164,7 @@ export default class Defiler {
 	}
 
 	// add a new virtual file
-	add(file: FileData): Promise<void> {
+	add(/** @type {FileData} */ file) {
 		if (this._status === Status.Before) {
 			throw new Error('defiler.add: cannot call before calling exec');
 		}
@@ -178,7 +177,7 @@ export default class Defiler {
 	}
 
 	// resolve a given path from the file currently being transformed
-	resolve(path: string): string {
+	resolve(/** @type {string} */ path) {
 		if (this._resolver) {
 			const current = this._context.getStore();
 			if (typeof current === 'string') {
@@ -191,12 +190,12 @@ export default class Defiler {
 	// private methods
 
 	// return a Promise that we will resolve at the end of this wave, and save its resolver
-	private _start_wave(): Promise<void> {
+	_start_wave() {
 		return new Promise((res) => (this._end_wave = res));
 	}
 
 	// add a Watcher event to the queue, and handle queued events
-	private async _enqueue(watcher?: WatcherData, event?: WatcherEvent): Promise<void> {
+	async _enqueue(/** @type {WatcherData} */ watcher, /** @type {WatcherEvent} */ event) {
 		if (event) {
 			this._queue.push([watcher, event]);
 		}
@@ -228,7 +227,11 @@ export default class Defiler {
 	}
 
 	// create a file object for a physical file and process it
-	private async _process_physical_file({ dir, read, enc }: WatcherData, path: string, file: FileData): Promise<void> {
+	async _process_physical_file(
+		/** @type {WatcherData} */ { dir, read, enc },
+		/** @type {string} */ path,
+		/** @type {FileData} */ file,
+	) {
 		if (typeof read === 'function') {
 			read = await read({ path, stats: file.stats });
 		}
@@ -245,8 +248,8 @@ export default class Defiler {
 	}
 
 	// transform a file, store it, and process dependents
-	private async _process_file(data: FileData, event: string): Promise<void> {
-		const file: File = Object.assign(new File(), data);
+	async _process_file(/** @type {FileData} */ data, /** @type {string} */ event) {
+		const file = Object.assign(new File(), data);
 		const { path } = file;
 		this._active.add(path);
 		await this._call_transform(file, event);
@@ -261,7 +264,7 @@ export default class Defiler {
 	}
 
 	// call the transform on a file with the given event string, and handle errors
-	private async _call_transform(file: File, event: string): Promise<void> {
+	async _call_transform(/** @type {File} */ file, /** @type {string} */ event) {
 		try {
 			await this._context.run(file.path, () => this._transform({ file, event }));
 		} catch (error) {
@@ -272,7 +275,7 @@ export default class Defiler {
 	}
 
 	// run the generator given by the symbol
-	private async _process_generator(generator: Generator): Promise<void> {
+	async _process_generator(/** @type {Generator} */ generator) {
 		this._active.add(generator);
 		try {
 			await this._context.run(generator, generator);
@@ -286,8 +289,8 @@ export default class Defiler {
 	}
 
 	// re-process all files that depend on a particular path
-	private _process_dependents(path: string): void {
-		const dependents = new Set<Name>();
+	_process_dependents(/** @type {string} */ path) {
+		/** @type {Set<Name>} */ const dependents = new Set();
 		for (const [dependent, dependency] of this._deps) {
 			if (typeof dependency === 'string' ? dependency === path : dependency(path)) {
 				dependents.add(dependent);
@@ -305,12 +308,12 @@ export default class Defiler {
 	}
 
 	// check whether this wave is complete, and, if not, whether we need to break a deadlock
-	private _check_wave(): void {
+	_check_wave() {
 		if (!this._active.size) {
 			this._end_wave();
-		} else if (this._status === Status.During) {
-			const filter_waiting = new Set<Name>();
-			const all_waiting = new Set<Name>();
+		} else if (this._status === 1) {
+			/** @type {Set<Name>} */ const filter_waiting = new Set();
+			/** @type {Set<Name>} */ const all_waiting = new Set();
 			for (const [path, { paths }] of this._when_found) {
 				if (typeof path === 'function' || this._active.has(path)) {
 					paths.forEach((path) => filter_waiting.add(path));
@@ -338,7 +341,7 @@ export default class Defiler {
 	}
 
 	// mark a given awaited file as being found
-	private _mark_found(path: string | Filter): void {
+	_mark_found(/** @type {string | Filter} */ path) {
 		if (this._when_found.has(path)) {
 			this._when_found.get(path).resolve();
 			this._when_found.delete(path);
@@ -346,54 +349,58 @@ export default class Defiler {
 	}
 }
 
-interface DefilerData {
-	transform: Transform;
-	generators?: Generator[];
-	resolver?: Resolver;
-	onerror?: OnError;
-}
+/**
+ * @typedef {object} DefilerData
+ * @property {Transform} transform
+ * @property {Generator[]} generators
+ * @property {Resolver} resolver
+ * @property {OnError} onerror
+ */
 
-interface FileData {
-	path: string;
-	[prop: string]: any;
-}
+/**
+ * @typedef {object} FileData
+ * @property {string} path
+ */
+// TODO: [prop: string]: any
 
-interface Filter {
-	(path: string): boolean;
-}
+/** @typedef {(path: string) => boolean} Filter */
 
-interface Generator {
-	(): Promise<void>;
-}
+/** @typedef {() => Promise<void>} Generator */
 
-type Name = string | Generator;
+/** @typedef {string | Generator} Name */
 
-interface OnError {
-	(arg: { file?: any; event?: string; generator?: Generator; error: Error }): void;
-}
+/** @typedef {(arg: { file?: any; event?: string; generator?: Generator; error: Error }) => void} OnError */
 
-interface Resolver {
-	(base: string, path: string): string;
-}
+/** @typedef {(base: string, path: string) => string} Resolver */
 
-const enum Status {
-	Before,
-	During,
-	After,
-}
+/** @enum {number} */
+const Status = {
+	Before: 0,
+	During: 1,
+	After: 2,
+};
 
-interface Transform {
-	(arg: { file: File; event: string }): Promise<void>;
-}
+/** @typedef {(arg: { file: File; event: string }) => Promise<void>} Transform */
 
-interface WatcherData extends Watcher {
-	read: boolean | ((arg: { path: string; stats: fs.Stats }) => Promise<boolean>);
-	enc: string | ((arg: { path: string; stats: fs.Stats; bytes: Buffer }) => Promise<string>);
-	pre: (data: FileData) => Promise<void>;
-}
+/**
+ * @typedef {object} WatcherData
+ * @extends Watcher
+ * @property {boolean | ((arg: { path: string; stats: fs.Stats }) => Promise<boolean>)} read
+ * @property {((arg: { path: string; stats: fs.Stats; bytes: Buffer }) => Promise<string>)} enc
+ * @property {(data: FileData) => Promise<void>} pre
+ */
+// TODO fix this
 
-interface WhenFound {
-	promise: Promise<void>;
-	resolve: () => void;
-	paths: Name[];
-}
+/**
+ * @typedef {object} WatcherEvent
+ * @property {string} event
+ * @property {string} path
+ * @property {fs.Stats} stats
+ */
+
+/**
+ * @typedef {object} WhenFound
+ * @property {Promise<void>} promise
+ * @property {() => void} resolve
+ * @property {Name[]} paths
+ */

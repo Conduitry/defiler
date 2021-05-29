@@ -1,36 +1,36 @@
-import * as EventEmitter from 'events';
+import { EventEmitter } from 'events';
 import * as fs from 'fs';
 
 export default class Watcher extends EventEmitter {
-	dir: string;
-	filter: (file: { path: string; stats: fs.Stats }) => boolean;
-	watch: boolean;
-	debounce: number;
+	/** @type {string} */ dir;
+	/** @type {(file: { path: string; stats: fs.Stats }) => boolean} */ filter;
+	/** @type {boolean} */ watch;
+	/** @type {number} */ debounce;
 	// paths of all directories -> FSWatcher instances
-	private _watchers = new Map<string, fs.FSWatcher>();
+	/** @type {Map<string, fs.FSWatcher>} */ _watchers = new Map();
 	// paths of all files -> file stats
-	private _stats = new Map<string, fs.Stats>();
+	/** @type {Map<string, fs.Stats>} */ _stats = new Map();
 	// paths of files with pending debounced events -> setTimeout timer ids
-	private _timeouts = new Map<string, NodeJS.Timer>();
+	/** @type {Map<string, NodeJS.Timer>} */ _timeouts = new Map();
 	// queue of pending FSWatcher events to handle
-	private _queue: string[] = [];
+	/** @type {string[]} */ _queue = [];
 	// whether some FSWatcher event is currently already in the process of being handled
-	private _is_processing: boolean = false;
+	/** @type {boolean} */ _is_processing = false;
 
-	constructor(data: object /* = { dir, filter, watch, debounce } */) {
+	constructor(/** @type {object} */ data /* = { dir, filter, watch, debounce } */) {
 		super();
 		Object.assign(this, data);
 	}
 
 	// recurse directory, get stats, set up FSWatcher instances
 	// returns array of { path, stats }
-	async init(): Promise<{ path: string; stats: fs.Stats }[]> {
+	async init() {
 		await this._recurse(this.dir);
 		return [...this._stats.entries()].map(([path, stats]) => ({ path, stats }));
 	}
 
 	// recurse a given directory
-	private async _recurse(full: string): Promise<void> {
+	async _recurse(/** @type {string} */ full) {
 		const path = full.slice(this.dir.length + 1);
 		const stats = await fs.promises.stat(full);
 		if (this.filter && !(await this.filter({ path, stats }))) {
@@ -47,7 +47,7 @@ export default class Watcher extends EventEmitter {
 	}
 
 	// handle FSWatcher event for given directory
-	private _handle(dir: string, event: string, file: string): void {
+	_handle(/** @type {string} */ dir, /** @type {string} */ event, /** @type {string} */ file) {
 		const full = dir + '/' + file;
 		if (this._timeouts.has(full)) {
 			clearTimeout(this._timeouts.get(full));
@@ -62,7 +62,7 @@ export default class Watcher extends EventEmitter {
 	}
 
 	// add an FSWatcher event to the queue, and handle queued events
-	private async _enqueue(full: string): Promise<void> {
+	async _enqueue(/** @type {string} */ full) {
 		this._queue.push(full);
 		if (this._is_processing) {
 			return;
@@ -114,10 +114,4 @@ export default class Watcher extends EventEmitter {
 		}
 		this._is_processing = false;
 	}
-}
-
-export interface WatcherEvent {
-	event: string;
-	path: string;
-	stats?: fs.Stats;
 }

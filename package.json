@@ -8,12 +8,12 @@
 		"async",
 		"watch"
 	],
-	"main": "dist/index.cjs.js",
-	"module": "dist/index.esm.js",
+	"type": "module",
+	"main": "src/index.js",
 	"types": "types/index.d.ts",
 	"files": [
 		"*.md",
-		"dist",
+		"src",
 		"types"
 	],
 	"engines": {
@@ -28,16 +28,5 @@
 	"bugs": {
 		"url": "https://github.com/Conduitry/defiler/issues"
 	},
-	"homepage": "https://conduitry.dev/defiler",
-	"devDependencies": {
-		"@types/node": "=12",
-		"rollup": "^2",
-		"rollup-plugin-cheap-ts": "Conduitry/rollup-plugin-cheap-ts#semver:^1",
-		"typescript": "^4"
-	},
-	"scripts": {
-		"build": "rollup -c",
-		"dev": "rollup -cw",
-		"prepare": "npm run build"
-	}
+	"homepage": "https://conduitry.dev/defiler"
 }
