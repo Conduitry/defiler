@@ -40,14 +40,14 @@ export default class Watcher extends EventEmitter {
 			this.#stats.set(path, stats);
 		} else if (stats.isDirectory()) {
 			if (this.watch) {
-				this.#watchers.set(path, fs.watch(full, this.#_handle.bind(this, full)));
+				this.#watchers.set(path, fs.watch(full, this.#handle.bind(this, full)));
 			}
 			await Promise.all((await fs.promises.readdir(full)).map((sub) => this.#recurse(full + '/' + sub)));
 		}
 	}
 
 	// handle FSWatcher event for given directory
-	#_handle(/** @type {string} */ dir, /** @type {string} */ event, /** @type {string} */ file) {
+	#handle(/** @type {string} */ dir, /** @type {string} */ event, /** @type {string} */ file) {
 		const full = dir + '/' + file;
 		if (this.#timeouts.has(full)) {
 			clearTimeout(this.#timeouts.get(full));
