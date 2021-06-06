@@ -26,7 +26,7 @@ export default class Watcher extends EventEmitter {
 	// returns array of { path, stats }
 	async init() {
 		await this.#recurse(this.dir);
-		return [...this.#stats.entries()].map(([path, stats]) => ({ path, stats }));
+		return [...this.#stats].map(([path, stats]) => ({ path, stats }));
 	}
 
 	// recurse a given directory
@@ -83,7 +83,7 @@ export default class Watcher extends EventEmitter {
 				} else if (stats.isDirectory() && !this.#watchers.has(path)) {
 					// note the new directory: start watching it, and report any files in it
 					await this.#recurse(full);
-					for (const [new_path, stats] of this.#stats.entries()) {
+					for (const [new_path, stats] of this.#stats) {
 						if (new_path.startsWith(path + '/')) {
 							this.emit('', { event: '+', path: new_path, stats });
 						}
