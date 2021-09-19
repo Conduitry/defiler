@@ -44,7 +44,6 @@
 	},
 	"scripts": {
 		"build": "rollup -c",
-		"dev": "rollup -cw",
-		"prepare": "npm run build"
+		"dev": "rollup -cw"
 	}
 }
