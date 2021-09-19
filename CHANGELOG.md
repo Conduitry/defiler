@@ -1,3 +1,7 @@
+# v2.2.0
+
+- Expose proper ESM build (along with CJS build) using `pkg.exports` map
+
 # v2.1.1
 
 - Fix published types for `defiler.add(file)`

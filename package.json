@@ -1,6 +1,6 @@
 {
 	"name": "defiler",
-	"version": "2.1.1",
+	"version": "2.2.0",
 	"description": "A small, strange building block",
 	"keywords": [
 		"build",
@@ -8,12 +8,19 @@
 		"async",
 		"watch"
 	],
-	"type": "module",
-	"main": "src/index.js",
+	"exports": {
+		".": {
+			"import": "./dist/index.mjs",
+			"require": "./dist/index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.mjs",
 	"types": "types/index.d.ts",
 	"files": [
 		"*.md",
-		"src",
+		"dist",
 		"types"
 	],
 	"engines": {
@@ -28,5 +35,14 @@
 	"bugs": {
 		"url": "https://github.com/Conduitry/defiler/issues"
 	},
-	"homepage": "https://conduitry.dev/defiler"
+	"homepage": "https://conduitry.dev/defiler",
+	"devDependencies": {
+		"@types/node": "=12",
+		"rollup": "^2"
+	},
+	"scripts": {
+		"build": "rollup -c",
+		"dev": "rollup -cw",
+		"prepare": "npm run build"
+	}
 }
