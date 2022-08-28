@@ -1,3 +1,7 @@
+# v2.2.1
+
+- Fix race condition causing initial wave to hang when `defiler.add(filter)` is called after everything else is already done
+
 # v2.2.0
 
 - Expose proper ESM build (along with CJS build) using `pkg.exports` map
