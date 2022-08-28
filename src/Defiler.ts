@@ -99,7 +99,9 @@ export default class Defiler {
 				watcher.on('', (event) => this._enqueue(watcher, event));
 				// note that all files are pending transformation
 				await Promise.all(
-					(await watcher.init()).map(async (file) => {
+					(
+						await watcher.init()
+					).map(async (file) => {
 						const { path } = file;
 						if (watcher.pre) {
 							await watcher.pre(file);
