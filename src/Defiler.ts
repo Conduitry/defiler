@@ -155,11 +155,13 @@ export default class Defiler {
 			if (this._when_found.has(_)) {
 				const { promise, paths } = this._when_found.get(_);
 				paths.push(current);
+				this._check_wave();
 				await promise;
 			} else {
 				let resolve;
 				const promise = new Promise<void>((res) => (resolve = res));
 				this._when_found.set(_, { promise, resolve, paths: [current] });
+				this._check_wave();
 				await promise;
 			}
 		}
