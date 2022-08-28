@@ -1,7 +1,0 @@
-/dist/*
-!/dist/*.d.ts
-/node_modules/
-/package-lock.json
-/pnpm-lock.yaml
-/shrinkwrap.yaml
-/yarn.lock
