@@ -38,13 +38,13 @@
 	"homepage": "https://conduitry.dev/defiler",
 	"devDependencies": {
 		"@types/node": "=12",
-		"rollup": "^2",
+		"rollup": "^3",
 		"rollup-plugin-cheap-ts": "Conduitry/rollup-plugin-cheap-ts#semver:^1",
 		"typescript": "^4"
 	},
 	"scripts": {
-		"build": "rollup -c",
-		"dev": "rollup -cw",
+		"build": "rollup -c --bundleConfigAsCjs",
+		"dev": "rollup -cw --bundleConfigAsCjs",
 		"prepare": "npm run build"
 	}
 }
