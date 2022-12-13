@@ -1,3 +1,7 @@
+# v2.2.2
+
+- List `types` first in `package.json` `exports` map
+
 # v2.2.1
 
 - Fix race condition causing initial wave to hang when `defiler.get(filter)` is called after everything else is already done
