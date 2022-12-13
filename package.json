@@ -44,7 +44,6 @@
 	},
 	"scripts": {
 		"build": "rollup -c --bundleConfigAsCjs",
-		"dev": "rollup -cw --bundleConfigAsCjs",
-		"prepare": "npm run build"
+		"dev": "rollup -cw --bundleConfigAsCjs"
 	}
 }
